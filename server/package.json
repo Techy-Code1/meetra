@@ -2,9 +2,10 @@
   "name": "server",
   "version": "1.0.0",
   "main": "test.js",
+  "type": "module", 
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
+    "dev": "nodemon src/index.js" ,
     "start": "node src/index.js"
   },
   "keywords": [],
@@ -21,6 +22,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "nodemon": "^3.1.14",
+    "pg": "^8.20.0",
     "pretier": "^0.0.1"
   }
 }
