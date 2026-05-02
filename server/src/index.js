@@ -1,22 +1,24 @@
 import dotenv from "dotenv";
-import { connectDB } from "./db/index.js";
-import { app } from "./app.js";
 dotenv.config({ path: "./.env" });
+import { app } from "./app.js";
+import prisma from "./db/index.js";
 
+async function start() {
+  try {
+    // test DB connection
+    await prisma.$queryRaw`SELECT 1`;
 
-connectDB()
-  .then(() => {
     const port = process.env.PORT || 8000;
-    console.log("PORT:", process.env.PORT);
+    console.log("PORT:", port);
 
     app.listen(port, () => {
-      console.log("App is Listening at Port:", port);
+      console.log("App is listening at Port:", port);
     });
-  })
-  .catch((error) => {
-    console.log("Database Connection Failed:", error);
-  });
 
-//   for Checking the .env file is perfectly working or not
-//   console.log("DOTENV RESULT:", result);
-// console.log("CORS_ORIGIN:", process.env.CORS_ORIGIN);
+  } catch (error) {
+    console.log("Database Connection Failed:", error);
+    process.exit(1);
+  }
+}
+
+start();

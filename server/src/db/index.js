@@ -1,25 +1,20 @@
-import pkg from "pg";
-const { Pool } = pkg;
+import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+import pg from 'pg'
+import dotenv from 'dotenv'
 
-let pool;
+dotenv.config({ path: './.env' })
 
-const connectDB = async () => {
-  try {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false, // required for Neon / remote DB
-      },
-    });
+console.log("DATABASE_URL:", process.env.DATABASE_URL) // keep for now
 
-    // test connection
-    const res = await pool.query("SELECT NOW()");
-    console.log("PostgreSQL Connected at:", res.rows[0].now);
-
-  } catch (error) {
-    console.log("PostgreSQL Connection Failed:", error);
-    process.exit(1);
+const pool = new pg.Pool({ 
+  connectionString: process.env.DATABASE_URL ,
+  ssl: {
+    rejectUnauthorized: false  // ← required for Neon/Supabase/Railway etc.
   }
-};
+ })
+const adapter = new PrismaPg(pool)
 
-export { connectDB, pool };
+const prisma = new PrismaClient({ adapter })
+
+export default prisma
