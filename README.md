@@ -5,7 +5,7 @@ A lightweight, modern video conferencing platform focused on real-time collabora
 
 1. Using Prisma 
     npm i prisma @prisma/client
-    npm prisma init
+    npx prisma init --datasource-provider postgresql
 
 2. Add Prisma Script on package.json on scripts :
     "db:migrate": "prisma migrate dev",
@@ -71,7 +71,7 @@ Note :: Neon Dashboard → Connection Details → copy Pooled connection for DAT
             i.  uploadCloudinary
             ii. deleteFromCloudinary
     
-    3.  For better Understanding Visit:
+    For better Understanding Visit:
         - https://console.cloudinary.com/app/c-6e5adde4e5827adfa2e2ad324148b7/image/getting-started
 
 # Setting up Multer middleware for file Uploading 
@@ -80,10 +80,40 @@ Note :: Neon Dashboard → Connection Details → copy Pooled connection for DAT
     Help for temp file
     1. Create a method 
         i. storage => for upload the file tempororly
-    2. For better Understanding Visit:
+
+    For better Understanding Visit:
         - https://github.com/expressjs/multer 
 
+# Creating Method for Controllers:
+    * POST http://localhost:8000/api/v1/users/login
 
+    1. registerUser logic Building Steps
+        i.  get user details from frontend
+        ii. validation - not empty
+        iii. check if user already exists
+        iv. check for images , check for profile_pic
+        v. if avaliable upload them to cloudinary
+        vi. create user - create entry in DB
+        vii. remove password and refresh token
+        viii. check for user creation
+        ix. return response to frontend.
+    
+    2. LoginUser Controllers Flow 
+    * POST http://localhost:8000/api/v1/users/login
+ 
+    * Body: { identifier, password }
+    * identifier = email OR username
+    
+    * Flow:
+     1. Validate input
+     2. Find user by email or username
+     3. Check is_verified + is_active + is_deleted
+     4. Compare password with bcrypt
+     5. Generate access + refresh JWT tokens
+     6. Save hashed refresh token to RefreshTokens table
+     7. Log to AuthenticationLog
+     8. Set httpOnly cookies + return tokens in body
+ 
     
 
 
