@@ -6,13 +6,16 @@ import crypto           from "crypto";
 import prisma           from "../db/index.js";
 import sendOTPEmail     from "../utils/mailer.js";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
+import {uploadToCloudinary , deleteFromCloudinary} from '../utils/cloudinary.js'
 
 // Common cookie configuration for authentication tokens
    const options = {
     // httpOnly prevents JavaScript access (XSS protection)
         httpOnly : true ,
     // secure ensures cookies are sent only over HTTPS (production)
-        secure : true
+        secure : false ,
+
+        sameSite: "lax",
     }
 
 // ─────────────────────────────────────────────
@@ -77,7 +80,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
   // ── 3. Find user ──
   const user = await prisma.user.findUnique({
-    where: { user_id: decoded.id },
+    where: { user_id: decoded.user_id },
   });
 
   if (!user || !user.is_verified || !user.is_active || user.is_deleted) {
@@ -318,8 +321,7 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   // ── 2. Find user by email or username ──
-  const isEmail = email.includes("@");
-
+  const isEmail = Boolean(email);
   const user = await prisma.user.findFirst({
     where: isEmail
       ? { email:    email }
@@ -394,6 +396,122 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
+// --------------------------------------------
+// Logout Controller
+// --------------------------------------------
+// Post ==> http://localhost:8000/api/v1/users/logout
+
+const logoutUser = asyncHandler(async (req , res) => {
+    // extract the user from req.user
+    const userId  = req.user.user_id;
+      // Invalidate refresh token in DB
+    await prisma.refreshToken.updateMany({
+      where: {
+      user_id: userId,
+      is_revoked: false,
+      },
+      data: { is_revoked: true },
+    });
+
+  // Clear cookies
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged out successfully"));
+})
+
+// ----------------------------------------------------
+// GetCurrentUser
+// ----------------------------------------------------
+
+// GET =>  http://localhost:8000/api/v1/users/me
+
+const getCurrentUser = asyncHandler( async (req, res) => {
+  try {
+    // req.user should be set by your auth middleware (verifyJWT)
+    // Extract the user_id from req.user
+    const userId = req.user?.user_id;
+    console.log(userId)
+
+    if (!userId) {
+      throw new ApiError(400 , "UnAuthorized")
+    }
+
+    // Fetch user from DB
+    const user = await prisma.user.findUnique({
+      where: { user_id: userId },
+      select: {
+        user_id: true,
+        username: true,
+        email: true,
+        first_name: true,
+        last_name:true ,
+        profile_picture_url: true,
+        created_at: true,
+        is_active:true ,
+        is_verified:true,
+      },
+    });
+
+    if (!user) {
+      throw new ApiError(404 , 'User not Found')
+    }
+
+    return res.status(200)
+    .json(new ApiResponse(200 , user , "Current User Retrived Successfully."))
+
+  } catch (error) {
+    console.error("GET /me error:", error);
+
+    return res.status(500).
+    json(new ApiResponse(500 , {} , "Internal Server Error"));
+  }
+});
+
+// --------------------------------------------
+// uploadAvatar
+// --------------------------------------------
+//  POST =>  http://localhost:8000/api/v1/users/upload-avatar
+const uploadAvatar = asyncHandler (async (req , res) => {
+
+ try {
+    // 1. Ensure file exists
+    if (!req.file) {
+      throw new ApiError('400' , 'No Files Uploaded')
+    }
+
+    console.log(req.file)
+    const userId = req.user?.user_id;
+
+    if (!userId) {
+          throw new ApiError('401' , 'UnAuthorized')
+    }
+
+    // 2. Upload to Cloudinary
+    const uploadResult = await uploadToCloudinary(req.file.path, "profile_picture_url");
+
+    // 3. Update user in DB (Neon via Prisma)
+    const updatedUser = await prisma.user.update({
+      where: { user_id: userId },
+      data: {
+        profile_picture_url: uploadResult.secure_url,
+      },
+    });
+
+    // 4. Response
+    return res.status(200)
+    .json(new ApiResponse(200 , updatedUser.profile_picture_url , 'Avatar Uploaded Successfully.'))
+
+  } catch (error) {
+    console.error("Upload Avatar Error:", error);
+
+    return res.status(200)
+    .json(new ApiResponse (200 , error , "Internal Server Error"))
+
+  }
+})
+
 // ─────────────────────────────────────────────
 // Exports the Controllers
 // ---------------------------------------------
@@ -403,5 +521,7 @@ export {
     resendOTP, 
     loginUser ,
     refreshAccessToken ,
-
+    logoutUser ,
+    getCurrentUser ,
+    uploadAvatar
   }

@@ -7,7 +7,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const uploadCloudinary = async (localFilePath) => {
+const uploadToCloudinary = async (localFilePath) => {
     try {
         if (!localFilePath) return null;
         // upload the file on cloudinary.
@@ -31,4 +31,4 @@ const deleteFromCloudinary = async (publicId) => {
   await cloudinary.uploader.destroy(publicId);
 };
 
-export {uploadCloudinary , deleteFromCloudinary}
+export {uploadToCloudinary , deleteFromCloudinary}
