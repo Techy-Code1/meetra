@@ -114,12 +114,7 @@ Note :: Neon Dashboard → Connection Details → copy Pooled connection for DAT
      7. Log to AuthenticationLog
      8. Set httpOnly cookies + return tokens in body
 
-    Adding new Features
-    4. LogoutUser Controllers
-    5. GetCurrentUser Controllers
-    7. UploadAvatar Controllers
- 
-    
+
 
 
 
