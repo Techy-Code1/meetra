@@ -27,7 +27,6 @@ export const verifyJWT = async (req, res, next) => {
       where: { user_id: decoded.user_id },
       select: {
         user_id:     true,
-        username:    true,
         email:       true,
         is_active:   true,
         is_verified: true,

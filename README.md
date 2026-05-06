@@ -15,6 +15,7 @@ A lightweight, modern video conferencing platform focused on real-time collabora
 3.  Set Up Environment Variables:
     DATABASE_URL="postgresql://user:pass@ep-xxx.neon.tech/dbname?sslmode=require&pgbouncer=true"
     DIRECT_URL="postgresql://user:pass@ep-xxx.neon.tech/dbname?sslmode=require"
+    
 Note :: Neon Dashboard → Connection Details → copy Pooled connection for DATABASE_URL and Direct connection for DIRECT_URL
 
 4. Create Prisma Schema for related Tables: 
