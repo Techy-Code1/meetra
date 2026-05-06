@@ -114,8 +114,113 @@ Note :: Neon Dashboard → Connection Details → copy Pooled connection for DAT
      6. Save hashed refresh token to RefreshTokens table
      7. Log to AuthenticationLog
      8. Set httpOnly cookies + return tokens in body
- 
-    
+
+# Adding User Authentication and Profile Management API
+This module provides secure user account management features including profile retrieval, avatar upload, password management, and OTP-based password recovery.
+
+Features :
+1. Get current authenticated user
+    GET /api/v1/users/me
+
+    Description:
+    Returns the currently authenticated user's profile.
+
+    Response :
+    ``` {
+  "status": 200,
+  "data": {
+    "user_id": "...",
+    "email": "...",
+    "first_name": "...",
+    "last_name": "...",
+    "profile_picture_url": "...",
+    "created_at": "...",
+    "is_active": true,
+    "is_verified": true
+    }
+  }```
+
+2. Upload profile avatar (Cloudinary)
+
+    POST /api/v1/users/upload-avatar
+
+    Description:
+    Uploads a profile picture to Cloudinary and updates user record.
+
+    Response::
+    {  
+        "status": 200,
+        "data": "https://cloudinary-url"
+    }
+
+
+3. Change password (authenticated)
+   - POST /api/v1/users/change-password
+   - in postman got to Body and paste it ::
+    {
+    "currentPassword": "old_pass",
+    "newPassword": "new_pass",
+    "confirmPassword": "new_pass"
+    }
+   - Validations:
+    All fields required
+    New password must differ from old
+    Password confirmation must match
+
+4. Forgot password (OTP via email)
+    - POST /api/v1/users/forgot-password
+
+    - Description:
+        Sends OTP to user email (valid for 15 minutes)
+
+     - Body :: 
+        {
+            "email": "user@example.com"
+        }
+
+    Security Behavior:
+    - Always returns success (prevents email enumeration)
+5. Verify OTP securely
+- POST /api/v1/users/verify-forgot-password-otp
+- Body :: 
+    {
+    "email": "user@example.com",
+    "otp": "123456"
+    }
+
+- Response ::
+    {
+        "resetToken": "temporary_token"
+    }
+- Notes:
+    OTP is replaced with a short-lived reset token
+    Token valid for 10 minutes
+
+6. Reset password using token
+- POST /api/v1/users/reset-password
+- Body :: 
+    {
+        "email": "user@example.com",
+        "resetToken": "token_from_previous_step",
+        "newPassword": "new_pass",
+        "confirmPassword": "new_pass"
+    }
+- Actions:
+    Validates reset token
+    Updates password
+    Revokes all refresh tokens
+    Deletes reset token
+
+7. Security-first implementation (hashed tokens, silent responses, token expiry)
+- Security Design
+    Key Practices Implemented:
+    - Passwords hashed using bcrypt (salt rounds: 12)
+    - OTPs are hashed before storage
+    - Token expiration enforced
+    -  No user existence leaks (forgot password)
+    -  Refresh tokens revoked after password reset
+    - Auth events logged (logAuthEvent)
+
 
 
 

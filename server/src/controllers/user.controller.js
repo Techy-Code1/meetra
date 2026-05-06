@@ -808,7 +808,3 @@ export {
   verifyForgotPasswordOTP,  
   resetPassword,             
 };
-
-
-// Implement user password management features: add changePassword, forgotPassword, verifyForgotPasswordOTP,
-//  and resetPassword functionalities; update user routes and controllers; enhance email utility for password reset OTP.
