@@ -6,8 +6,6 @@ import crypto           from "crypto";
 import prisma           from "../db/index.js";
 import sendOTPEmail     from "../utils/mailer.js";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
-import {uploadToCloudinary , deleteFromCloudinary} from '../utils/cloudinary.js'
-
 import { decrypt } from "dotenv";
 
 // Common cookie configuration for authentication tokens
@@ -16,7 +14,6 @@ import { decrypt } from "dotenv";
         httpOnly : true ,
     // secure ensures cookies are sent only over HTTPS (production)
         secure : false ,
-
         sameSite: "lax",
     }
 
@@ -432,84 +429,6 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
-// ----------------------------------------------------
-// GetCurrentUser
-// ----------------------------------------------------
-const getCurrentUser = asyncHandler(async (req, res) => {
-  try {
-    const userId = req.user?.user_id;
-
-    if (!userId) {
-      throw new ApiError(400, "UnAuthorized");
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { user_id: userId },
-      select: {
-        user_id:             true,
-        email:               true,
-        first_name:          true,
-        last_name:           true,
-        profile_picture_url: true,
-        created_at:          true,
-        is_active:           true,
-        is_verified:         true,
-      },
-    });
-
-    if (!user) {
-      throw new ApiError(404, "User not Found");
-    }
-
-    return res
-      .status(200)
-      .json(new ApiResponse(200, user, "Current User Retrieved Successfully."));
-
-  } catch (error) {
-    console.error("GET /me error:", error);
-    return res
-      .status(500)
-      .json(new ApiResponse(500, {}, "Internal Server Error"));
-  }
-});
-
-// --------------------------------------------
-// uploadAvatar
-// --------------------------------------------
-const uploadAvatar = asyncHandler(async (req, res) => {
-  try {
-    if (!req.file) {
-      throw new ApiError(400, "No Files Uploaded");
-    }
-
-    const userId = req.user?.user_id;
-
-    if (!userId) {
-      throw new ApiError(401, "UnAuthorized");
-    }
-
-    // Upload to Cloudinary
-    const uploadResult = await uploadToCloudinary(req.file.path, "profile_picture_url");
-
-    // Update user in DB
-    const updatedUser = await prisma.user.update({
-      where: { user_id: userId },
-      data: {
-        profile_picture_url: uploadResult.secure_url,
-      },
-    });
-
-    return res
-      .status(200)
-      .json(new ApiResponse(200, updatedUser.profile_picture_url, "Avatar Uploaded Successfully."));
-
-  } catch (error) {
-    console.error("Upload Avatar Error:", error);
-    return res
-      .status(500)                                         // 🐛 fixed: was 200
-      .json(new ApiResponse(500, {}, "Internal Server Error"));
-  }
-});
 
 // --------------------------------------------
 // changePassword
@@ -801,8 +720,6 @@ export {
   loginUser,
   refreshAccessToken,
   logoutUser,
-  getCurrentUser,
-  uploadAvatar,
   changePassword,
   forgotPassword,            
   verifyForgotPasswordOTP,  

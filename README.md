@@ -122,10 +122,10 @@ Features :
 1. Get current authenticated user
     GET /api/v1/users/me
 
-    Description:
+   - Description:
     Returns the currently authenticated user's profile.
 
-    Response :
+   - Response :
     ``` {
   "status": 200,
   "data": {
@@ -142,12 +142,12 @@ Features :
 
 2. Upload profile avatar (Cloudinary)
 
-    POST /api/v1/users/upload-avatar
+   - POST /api/v1/users/upload-avatar
 
-    Description:
+   - Description:
     Uploads a profile picture to Cloudinary and updates user record.
 
-    Response::
+   - Response::
     {  
         "status": 200,
         "data": "https://cloudinary-url"
@@ -220,5 +220,6 @@ Features :
     -  No user existence leaks (forgot password)
     -  Refresh tokens revoked after password reset
     - Auth events logged (logAuthEvent)
+
 
 
