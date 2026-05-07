@@ -6,7 +6,7 @@ import crypto           from "crypto";
 import prisma           from "../db/index.js";
 import sendOTPEmail     from "../utils/mailer.js";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
-import {uploadToCloudinary , deleteFromCloudinary} from '../utils/cloudinary.js'
+import { decrypt } from "dotenv";
 
 // Common cookie configuration for authentication tokens
    const options = {
@@ -14,7 +14,6 @@ import {uploadToCloudinary , deleteFromCloudinary} from '../utils/cloudinary.js'
         httpOnly : true ,
     // secure ensures cookies are sent only over HTTPS (production)
         secure : false ,
-
         sameSite: "lax",
     }
 
@@ -151,51 +150,75 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 // REGISTER
 // ─────────────────────────────────────────────
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, email, password, first_name, last_name } = req.body;
+  
+  // ── 1. Destructure body ──
+  const { email, password, first_name, last_name } = req.body;
 
-  if (!username || !email || !password || !first_name || !last_name) {
+  // ── 2. Validate fields ──
+  if (!email || !password || !first_name || !last_name) {
     throw new ApiError(400, "All fields are required");
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) throw new ApiError(400, "Invalid email format");
-  if (password.length < 8) throw new ApiError(400, "Password must be at least 8 characters");
-
-  const [emailExists, usernameExists] = await Promise.all([
-    prisma.user.findUnique({ where: { email } }),
-    prisma.user.findUnique({ where: { username } }),
-  ]);
-
-  if (emailExists?.is_verified) throw new ApiError(400, "Email already registered");
-  if (usernameExists?.is_verified && usernameExists.user_id !== emailExists?.user_id)
-    throw new ApiError(400, "Username already taken");
-
-  if (emailExists && !emailExists.is_verified) {
-    await prisma.emailVerificationToken.deleteMany({ where: { user_id: emailExists.user_id } });
-    await prisma.user.delete({ where: { user_id: emailExists.user_id } });
+  if (!emailRegex.test(email)) {
+    throw new ApiError(400, "Invalid email format");
   }
 
+  if (password.length < 8) {
+    throw new ApiError(400, "Password must be at least 8 characters");
+  }
+
+  // ── 3. Check if email already exists ──
+  const emailExists = await prisma.user.findUnique({ where: { email } });
+
+  if (emailExists?.is_verified) {
+    throw new ApiError(400, "Email already registered");
+  }
+
+  if (emailExists && !emailExists.is_verified) {
+    await prisma.emailVerificationToken.deleteMany({ 
+      where: { user_id: emailExists.user_id } 
+    });
+    await prisma.user.delete({ 
+      where: { user_id: emailExists.user_id } 
+    });
+  }
+
+  // ── 4. Hash password ──
   const password_hash = await bcrypt.hash(password, 12);
+
+  // ── 5. Create user ──
   const user = await prisma.user.create({
-    data: { username, email, password_hash, first_name, last_name },
+    data: {
+      email,
+      password_hash,   // ✅ matches DB field name exactly
+      first_name,
+      last_name,
+    },
   });
 
+  // ── 6. Generate OTP ──
   const rawOTP    = generateOTP();
   const hashedOTP = hashToken(rawOTP);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   await prisma.emailVerificationToken.create({
-    data: { user_id: user.user_id, token: hashedOTP, expires_at: expiresAt },
+    data: { 
+      user_id:    user.user_id, 
+      token:      hashedOTP, 
+      expires_at: expiresAt 
+    },
   });
 
+  // ── 7. Send OTP email ──
   await sendOTPEmail(email, rawOTP, first_name);
   await logAuthEvent(user.user_id, "REGISTER", req);
 
+  // ── 8. Return response ──
   return res.status(201).json(
-    new ApiResponse(201, { email }, "Account created. Please verify your email with the OTP sent.")
+    new ApiResponse(201, { email }, "Please verify your email with the OTP sent.")
   );
 });
-
 // ─────────────────────────────────────────────
 // VERIFY OTP
 // ─────────────────────────────────────────────
@@ -254,7 +277,6 @@ const verifyOTP = asyncHandler(async (req, res) => {
       refreshToken,
       user: {
         user_id:     updatedUser.user_id,
-        username:    updatedUser.username,
         email:       updatedUser.email,
         first_name:  updatedUser.first_name,
         last_name:   updatedUser.last_name,
@@ -309,27 +331,21 @@ const resendOTP = asyncHandler(async (req, res) => {
  *   7. Log to AuthenticationLog
  *   8. Set httpOnly cookies + return tokens in body
  */
-
 const loginUser = asyncHandler(async (req, res) => {
-  const { email , username , password } = req.body;
-  console.log(email)
-  console.log(username)
+  const { email, password } = req.body;
 
   // ── 1. Validate ──
-  if (!(email || username) || !password) {
-    throw new ApiError(400, "Email or username and password are required");
+  if (!email || !password) {
+    throw new ApiError(400, "Email and password are required");
   }
 
-  // ── 2. Find user by email or username ──
-  const isEmail = Boolean(email);
+  // ── 2. Find user by email ──
   const user = await prisma.user.findFirst({
-    where: isEmail
-      ? { email:    email }
-      : { username: username },
+    where: { email: email },
   });
 
   if (!user) {
-    throw new ApiError(404, "No account found with that email or username");
+    throw new ApiError(404, "No account found with that email");
   }
 
   // ── 3. Check account status ──
@@ -358,14 +374,11 @@ const loginUser = asyncHandler(async (req, res) => {
   const refreshToken = generateRefreshToken(user);
 
   // ── 6. Save hashed refresh token to DB ──
-  // Hash the JWT itself so refreshAccessToken can verify it later.
-  // Previously a separate rawRefresh was hashed — that made the stored
-  // token impossible to match against the cookie/body value on refresh.
   await prisma.refreshToken.create({
     data: {
       user_id:     user.user_id,
-      token:       hashToken(refreshToken),          
-      device_info: req.headers["user-agent"]               || null,
+      token:       hashToken(refreshToken),
+      device_info: req.headers["user-agent"]                || null,
       ip_address:  req.ip || req.headers["x-forwarded-for"] || null,
       expires_at:  new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
     },
@@ -385,8 +398,7 @@ const loginUser = asyncHandler(async (req, res) => {
         refreshToken,
         user: {
           user_id:             user.user_id,
-          username:            user.username,
-          email:               user.email,
+          email:               user.email,       // ✅ username removed
           first_name:          user.first_name,
           last_name:           user.last_name,
           profile_picture_url: user.profile_picture_url,
@@ -399,129 +411,317 @@ const loginUser = asyncHandler(async (req, res) => {
 // --------------------------------------------
 // Logout Controller
 // --------------------------------------------
-// Post ==> http://localhost:8000/api/v1/users/logout
+const logoutUser = asyncHandler(async (req, res) => {
+  const userId = req.user.user_id;
 
-const logoutUser = asyncHandler(async (req , res) => {
-    // extract the user from req.user
-    const userId  = req.user.user_id;
-      // Invalidate refresh token in DB
-    await prisma.refreshToken.updateMany({
-      where: {
-      user_id: userId,
+  await prisma.refreshToken.updateMany({
+    where: {
+      user_id:    userId,
       is_revoked: false,
-      },
-      data: { is_revoked: true },
-    });
+    },
+    data: { is_revoked: true },
+  });
 
-  // Clear cookies
   return res
     .status(200)
     .clearCookie("accessToken", options)
     .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "User logged out successfully"));
-})
-
-// ----------------------------------------------------
-// GetCurrentUser
-// ----------------------------------------------------
-
-// GET =>  http://localhost:8000/api/v1/users/me
-
-const getCurrentUser = asyncHandler( async (req, res) => {
-  try {
-    // req.user should be set by your auth middleware (verifyJWT)
-    // Extract the user_id from req.user
-    const userId = req.user?.user_id;
-    console.log(userId)
-
-    if (!userId) {
-      throw new ApiError(400 , "UnAuthorized")
-    }
-
-    // Fetch user from DB
-    const user = await prisma.user.findUnique({
-      where: { user_id: userId },
-      select: {
-        user_id: true,
-        username: true,
-        email: true,
-        first_name: true,
-        last_name:true ,
-        profile_picture_url: true,
-        created_at: true,
-        is_active:true ,
-        is_verified:true,
-      },
-    });
-
-    if (!user) {
-      throw new ApiError(404 , 'User not Found')
-    }
-
-    return res.status(200)
-    .json(new ApiResponse(200 , user , "Current User Retrived Successfully."))
-
-  } catch (error) {
-    console.error("GET /me error:", error);
-
-    return res.status(500).
-    json(new ApiResponse(500 , {} , "Internal Server Error"));
-  }
 });
 
+
 // --------------------------------------------
-// uploadAvatar
+// changePassword
 // --------------------------------------------
-//  POST =>  http://localhost:8000/api/v1/users/upload-avatar
-const uploadAvatar = asyncHandler (async (req , res) => {
+const changePassword = asyncHandler(async (req, res) => {
+  const userId = req.user?.user_id;
 
- try {
-    // 1. Ensure file exists
-    if (!req.file) {
-      throw new ApiError('400' , 'No Files Uploaded')
-    }
-
-    console.log(req.file)
-    const userId = req.user?.user_id;
-
-    if (!userId) {
-          throw new ApiError('401' , 'UnAuthorized')
-    }
-
-    // 2. Upload to Cloudinary
-    const uploadResult = await uploadToCloudinary(req.file.path, "profile_picture_url");
-
-    // 3. Update user in DB (Neon via Prisma)
-    const updatedUser = await prisma.user.update({
-      where: { user_id: userId },
-      data: {
-        profile_picture_url: uploadResult.secure_url,
-      },
-    });
-
-    // 4. Response
-    return res.status(200)
-    .json(new ApiResponse(200 , updatedUser.profile_picture_url , 'Avatar Uploaded Successfully.'))
-
-  } catch (error) {
-    console.error("Upload Avatar Error:", error);
-
-    return res.status(200)
-    .json(new ApiResponse (200 , error , "Internal Server Error"))
-
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized User");
   }
-})
+
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    throw new ApiError(400, "Current, new, and confirm password are required");
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "New and confirm password must be same");
+  }
+
+  if (currentPassword === newPassword) {
+    throw new ApiError(400, "New password must be different from current password");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { user_id: userId },
+  });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+
+  if (!isMatch) {
+    throw new ApiError(400, "Current password is incorrect");
+  }
+
+  const newHashedPassword = await bcrypt.hash(newPassword, 12);
+
+  await prisma.user.update({
+    where: { user_id: userId },
+    data: { password_hash: newHashedPassword },
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password Changed Successfully."));
+});
 
 // ─────────────────────────────────────────────
-// Exports the Controllers
-// ---------------------------------------------
-export {
-    registerUser, 
-    verifyOTP,
-    resendOTP, 
-    loginUser ,
-    refreshAccessToken ,
-    logoutUser ,
-    getCurrentUser ,
-    uploadAvatar
+// [1] FORGOT PASSWORD — Send OTP to email
+// ─────────────────────────────────────────────
+// POST => /api/v1/users/forgot-password
+
+const forgotPassword = asyncHandler(async (req, res) => {
+
+  // ── 1. Get email from body ──
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError(400, "Email is required");
   }
+
+  // ── 2. Check if user exists ──
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  // ── 3. Always return same response (security best practice)
+  //       Don't reveal if email exists or not
+  if (!user) {
+    return res.status(200).json(
+      new ApiResponse(200, {}, "If this email exists, an OTP has been sent.")
+    );
+  }
+
+  // ── 4. Check account status ──
+  if (!user.is_verified) {
+    throw new ApiError(403, "Account not verified. Please verify your email first.");
+  }
+
+  if (!user.is_active) {
+    throw new ApiError(403, "Account is deactivated. Please contact support.");
+  }
+
+  // ── 5. Delete any existing reset tokens for this user ──
+  await prisma.passwordResetToken.deleteMany({
+    where: { user_id: user.user_id },
+  });
+
+  // ── 6. Generate OTP ──
+  const rawOTP    = generateOTP();
+  const hashedOTP = hashToken(rawOTP);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  // ── 7. Save hashed OTP to DB ──
+  await prisma.passwordResetToken.create({
+    data: {
+      user_id:    user.user_id,
+      token:      hashedOTP,
+      expires_at: expiresAt,
+    },
+  });
+
+  // ── 8. Send OTP email ──
+  await sendOTPEmail(email, rawOTP, user.first_name);
+
+  // ── 9. Log event ──
+  await logAuthEvent(user.user_id, "FORGOT_PASSWORD_OTP_SENT", req, "success");
+
+  return res.status(200).json(
+    new ApiResponse(200, { email }, "OTP sent to your email. Valid for 15 minutes.")
+  );
+});
+
+
+// ─────────────────────────────────────────────
+// [2] VERIFY FORGOT PASSWORD OTP
+// ─────────────────────────────────────────────
+// POST => /api/v1/users/verify-forgot-password-otp
+
+const verifyForgotPasswordOTP = asyncHandler(async (req, res) => {
+
+  // ── 1. Get email and OTP from body ──
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    throw new ApiError(400, "Email and OTP are required");
+  }
+
+  // ── 2. Find user ──
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // ── 3. Find the reset token in DB ──
+  const hashedOTP = hashToken(otp);
+
+  const resetToken = await prisma.passwordResetToken.findFirst({
+    where: {
+      user_id: user.user_id,
+      token:   hashedOTP,
+    },
+  });
+
+  // ── 4. Validate token ──
+  if (!resetToken) {
+    throw new ApiError(400, "Invalid OTP");
+  }
+
+  if (resetToken.expires_at < new Date()) {
+    // Delete expired token
+    await prisma.passwordResetToken.delete({
+      where: { token_id: resetToken.token_id },
+    });
+    throw new ApiError(400, "OTP has expired. Please request a new one.");
+  }
+
+  // ── 5. Generate a short-lived resetToken to allow password change ──
+  //       This proves the user verified OTP without keeping OTP alive
+  const rawResetToken    = crypto.randomBytes(32).toString("hex");
+  const hashedResetToken = hashToken(rawResetToken);
+  const newExpiresAt     = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  // ── 6. Update the token record — mark OTP as verified, store resetToken ──
+  await prisma.passwordResetToken.update({
+    where: { token_id: resetToken.token_id },
+    data: {
+      token:       hashedResetToken,  // replace OTP with reset token
+      expires_at:  newExpiresAt,
+      is_verified: true,
+    },
+  });
+
+  // ── 7. Log event ──
+  await logAuthEvent(user.user_id, "FORGOT_PASSWORD_OTP_VERIFIED", req, "success");
+
+  // ── 8. Return resetToken to frontend (used in next step) ──
+  return res.status(200).json(
+    new ApiResponse(200, {
+      resetToken: rawResetToken,  // frontend stores this temporarily
+      email,
+    }, "OTP verified. You can now reset your password.")
+  );
+});
+
+// ─────────────────────────────────────────────
+// [3] RESET PASSWORD — Set new password
+// ─────────────────────────────────────────────
+// POST => /api/v1/users/reset-password
+
+const resetPassword = asyncHandler(async (req, res) => {
+
+  // ── 1. Get data from body ──
+  const { email, resetToken, newPassword, confirmPassword } = req.body;
+
+  if (!email || !resetToken || !newPassword || !confirmPassword) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  // ── 2. Validate passwords match ──
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "Passwords do not match");
+  }
+
+  if (newPassword.length < 8) {
+    throw new ApiError(400, "Password must be at least 8 characters");
+  }
+
+  // ── 3. Find user ──
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // ── 4. Find and validate reset token ──
+  const hashedResetToken = hashToken(resetToken);
+
+  const storedToken = await prisma.passwordResetToken.findFirst({
+    where: {
+      user_id:     user.user_id,
+      token:       hashedResetToken,
+      is_verified: true,              // must have passed OTP step
+    },
+  });
+
+  if (!storedToken) {
+    throw new ApiError(400, "Invalid or expired reset token. Please start over.");
+  }
+
+  if (storedToken.expires_at < new Date()) {
+    await prisma.passwordResetToken.delete({
+      where: { token_id: storedToken.token_id },
+    });
+    throw new ApiError(400, "Reset token expired. Please request a new OTP.");
+  }
+
+  // ── 5. Check new password is not same as old ──
+  const isSamePassword = await bcrypt.compare(newPassword, user.password_hash);
+  if (isSamePassword) {
+    throw new ApiError(400, "New password cannot be the same as your current password");
+  }
+
+  // ── 6. Hash new password ──
+  const password_hash = await bcrypt.hash(newPassword, 12);
+
+  // ── 7. Update password in DB ──
+  await prisma.user.update({
+    where: { user_id: user.user_id },
+    data:  { password_hash },
+  });
+
+  // ── 8. Delete used reset token ──
+  await prisma.passwordResetToken.delete({
+    where: { token_id: storedToken.token_id },
+  });
+
+  // ── 9. Revoke all existing refresh tokens (force re-login) ──
+  await prisma.refreshToken.updateMany({
+    where: { user_id: user.user_id },
+    data:  { is_revoked: true },
+  });
+
+  // ── 10. Log event ──
+  await logAuthEvent(user.user_id, "PASSWORD_RESET", req, "success");
+
+  return res.status(200).json(
+    new ApiResponse(200, {}, "Password reset successfully. Please login with your new password.")
+  );
+});
+
+
+// ─────────────────────────────────────────────
+// Exports
+// ─────────────────────────────────────────────
+export {
+  registerUser,
+  verifyOTP,
+  resendOTP,
+  loginUser,
+  refreshAccessToken,
+  logoutUser,
+  changePassword,
+  forgotPassword,            
+  verifyForgotPasswordOTP,  
+  resetPassword,             
+};
