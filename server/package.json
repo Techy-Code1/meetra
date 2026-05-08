@@ -31,7 +31,8 @@
     "nodemon": "^3.1.14",
     "pg": "^8.20.0",
     "pretier": "^0.0.1",
-    "resend": "^6.12.2"
+    "resend": "^6.12.2",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
