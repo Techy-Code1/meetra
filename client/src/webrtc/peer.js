@@ -1,7 +1,14 @@
 let peerConnection;
 let pendingIceCandidates = [];
+let remoteSocketId = null;
+
+export const setRemoteSocketId = (socketId) => {
+  remoteSocketId = socketId;
+};
 
 export const createPeerConnection = (socket, roomId, setRemoteStream) => {
+  closePeerConnection();
+
   peerConnection = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }], // Google's public STUN server
   });
@@ -18,6 +25,7 @@ export const createPeerConnection = (socket, roomId, setRemoteStream) => {
       console.log("Sending ICE candidate");
       socket.emit("ice-candidate", {
         roomId,
+        targetSocketId: remoteSocketId,
         candidate: event.candidate,
       });
     }
@@ -43,29 +51,41 @@ const addPendingIceCandidates = async () => {
 
 // Add local media tracks to the peer connection
 export const addLocalTracks = (stream) => {
+  if (!peerConnection) return;
+
+  const existingTrackIds = new Set(
+    peerConnection.getSenders().map((sender) => sender.track?.id).filter(Boolean)
+  );
+
   stream.getTracks().forEach((track) => {
-    peerConnection.addTrack(track, stream);
+    if (!existingTrackIds.has(track.id)) {
+      peerConnection.addTrack(track, stream);
+    }
   });
 };
 
 
 //Send an offer to the other peer to initiate the connection (offer is a description of the local media)
-export const createOffer = async (socket, roomId) => {
+export const createOffer = async (socket, roomId, targetSocketId) => {
+  setRemoteSocketId(targetSocketId);
+
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
 
-  socket.emit("offer", { roomId, offer });
+  socket.emit("offer", { roomId, targetSocketId, offer });
 };
 
 
-export const handleOffer = async (socket, roomId, offer) => {
+export const handleOffer = async (socket, roomId, offer, senderSocketId) => {
+  setRemoteSocketId(senderSocketId);
+
   await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
   await addPendingIceCandidates();
 
   const answer = await peerConnection.createAnswer();
   await peerConnection.setLocalDescription(answer);
 
-  socket.emit("answer", { roomId, answer });
+  socket.emit("answer", { roomId, targetSocketId: senderSocketId, answer });
 };
 
 // Handle the answer from the other peer (answer is a description of the remote media)
@@ -96,4 +116,5 @@ export const closePeerConnection = () => {
   }
 
   pendingIceCandidates = [];
+  remoteSocketId = null;
 };
