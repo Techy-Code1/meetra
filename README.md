@@ -116,6 +116,9 @@ Note :: Neon Dashboard → Connection Details → copy Pooled connection for DAT
      8. Set httpOnly cookies + return tokens in body
 
 
+
+
+
 # Adding User Authentication and Profile Management API
 This module provides secure user account management features including profile retrieval, avatar upload, password management, and OTP-based password recovery.
 
