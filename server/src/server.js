@@ -6,7 +6,7 @@ import prisma from "./db/index.js";
 
 import http from "http";
 import { Server } from "socket.io";
-import initSocket from "../socket/socketIndex.js";
+import initSocket from "./socket/index.js";
 
 const server = http.createServer(app);
 
