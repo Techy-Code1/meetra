@@ -7,6 +7,7 @@ import prisma from "./db/index.js";
 import http from "http";
 import { Server } from "socket.io";
 import initSocket from "./socket/index.js";
+import { createWorker } from "./mediasoup/worker.js";
 
 const server = http.createServer(app);
 
@@ -20,6 +21,7 @@ const io = new Server(server, {
 // initialize socket logic
 initSocket(io);
 
+await createWorker(); 
 
 async function start() {
   try {
