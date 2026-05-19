@@ -1,52 +1,45 @@
 generator client {
-  provider = "prisma-client-js" 
-  previewFeatures = ["driverAdapters"] 
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// ─────────────────────────────────────────────
-// Users & Auth
-// ─────────────────────────────────────────────
-
 model User {
-  user_id             String    @id @default(cuid())
-  email               String    @unique @db.VarChar(100)
-  password_hash       String    @db.VarChar(255)
-  first_name          String?   @db.VarChar(50)
-  last_name           String?   @db.VarChar(50)
-  profile_picture_url String?   @db.VarChar(255)
-  is_active           Boolean   @default(true)
-  is_verified         Boolean   @default(false)
-  is_deleted          Boolean   @default(false)
-  deleted_at          DateTime?
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
-
-  // Auth relations
-  refreshTokens            RefreshToken[]
-  emailVerificationTokens  EmailVerificationToken[]
-  passwordResetTokens      PasswordResetToken[]
-  authenticationLogs       AuthenticationLog[]
+  user_id                  String                    @id @default(cuid())
+  email                    String                    @unique @db.VarChar(100)
+  password_hash            String                    @db.VarChar(255)
+  first_name               String?                   @db.VarChar(50)
+  last_name                String?                   @db.VarChar(50)
+  profile_picture_url      String?                   @db.VarChar(255)
+  is_active                Boolean                   @default(true)
+  is_verified              Boolean                   @default(false)
+  is_deleted               Boolean                   @default(false)
+  deleted_at               DateTime?
+  created_at               DateTime                  @default(now())
+  updated_at               DateTime                  @updatedAt
   auditLogs                AuditLog[]
-
-  // App relations
-  userRoles                UserRole[]
-  hostedMeetings           Meeting[]                 @relation("HostedMeetings")
+  authenticationLogs       AuthenticationLog[]
+  breakoutRoomParticipants BreakoutRoomParticipant[]
+  contactOf                Contact[]                 @relation("ContactUser")
+  contacts                 Contact[]                 @relation("UserContacts")
+  devices                  Device[]
+  emailVerificationTokens  EmailVerificationToken[]
+  feedback                 Feedback[]
+  files                    File[]
   meetingHosts             MeetingHost[]
-  participants             Participant[]
+  lobbyEntries             MeetingLobby[]
+  hostedMeetings           Meeting[]                 @relation("HostedMeetings")
   messages                 Message[]
   notifications            Notification[]
-  devices                  Device[]
-  subscriptions            Subscription[]
+  participants             Participant[]
+  passwordResetTokens      PasswordResetToken[]
+  refreshTokens            RefreshToken[]
   settings                 Setting[]
-  files                    File[]
-  feedback                 Feedback[]
-  contacts                 Contact[]                 @relation("UserContacts")
-  contactOf                Contact[]                 @relation("ContactUser")
-  breakoutRoomParticipants BreakoutRoomParticipant[]
+  subscriptions            Subscription[]
+  userRoles                UserRole[]
 
   @@map("Users")
 }
@@ -55,8 +48,7 @@ model Role {
   role_id     String     @id @default(cuid())
   role_name   String     @unique @db.VarChar(50)
   description String?
-
-  userRoles UserRole[]
+  userRoles   UserRole[]
 
   @@map("Roles")
 }
@@ -65,77 +57,64 @@ model UserRole {
   user_id     String
   role_id     String
   assigned_at DateTime @default(now())
-
-  user User @relation(fields: [user_id], references: [user_id])
-  role Role @relation(fields: [role_id], references: [role_id])
+  role        Role     @relation(fields: [role_id], references: [role_id])
+  user        User     @relation(fields: [user_id], references: [user_id])
 
   @@id([user_id, role_id])
   @@map("UserRoles")
 }
 
-// ─────────────────────────────────────────────
-// Token Models (NEW)
-// ─────────────────────────────────────────────
-
 model RefreshToken {
-  token_id    String    @id @default(cuid())
+  token_id    String   @id @default(cuid())
   user_id     String
-  token       String    @unique @db.Text       // hashed token — never store raw
-  device_info String?   @db.VarChar(255)       // browser / OS info for sessions page
-  ip_address  String?   @db.VarChar(45)
-  is_revoked  Boolean   @default(false)        // set true on logout / force-signout
-  expires_at  DateTime                         // now + 30 days
-  created_at  DateTime  @default(now())
+  token       String   @unique
+  device_info String?  @db.VarChar(255)
+  ip_address  String?  @db.VarChar(45)
+  is_revoked  Boolean  @default(false)
+  expires_at  DateTime
+  created_at  DateTime @default(now())
+  user        User     @relation(fields: [user_id], references: [user_id])
 
-  user User @relation(fields: [user_id], references: [user_id])
-
-  @@index([user_id])                           // fast lookup for "logout all devices"
+  @@index([user_id])
   @@map("RefreshTokens")
 }
 
 model EmailVerificationToken {
   token_id   String    @id @default(cuid())
   user_id    String
-  token      String    @unique @db.VarChar(255) // hashed OTP / UUID sent in email
-  expires_at DateTime                           // now + 24 hours
-  used_at    DateTime?                          // stamped when consumed — prevents reuse
+  token      String    @unique @db.VarChar(255)
+  expires_at DateTime
+  used_at    DateTime?
   created_at DateTime  @default(now())
-
-  user User @relation(fields: [user_id], references: [user_id])
+  user       User      @relation(fields: [user_id], references: [user_id])
 
   @@index([user_id])
   @@map("EmailVerificationTokens")
 }
 
 model PasswordResetToken {
-  token_id   String    @id @default(cuid())
-  user_id    String
-  token      String    @unique @db.VarChar(255) // hashed token sent in reset email
-  expires_at DateTime                           // now + 1 hour
-  used_at    DateTime?                          // stamped on use — single-use only
+  token_id    String    @id @default(cuid())
+  user_id     String
+  token       String    @unique @db.VarChar(255)
+  expires_at  DateTime
+  used_at     DateTime?
+  created_at  DateTime  @default(now())
   is_verified Boolean   @default(false)
-  created_at DateTime  @default(now())
-
-  user User @relation(fields: [user_id], references: [user_id])
+  user        User      @relation(fields: [user_id], references: [user_id])
 
   @@index([user_id])
   @@map("PasswordResetTokens")
 }
 
-// ─────────────────────────────────────────────
-// Auth Logs
-// ─────────────────────────────────────────────
-
 model AuthenticationLog {
   log_id     String   @id @default(cuid())
   user_id    String
-  action     String   @db.VarChar(50)           // LOGIN | LOGOUT | TOKEN_REFRESH | FAILED
+  action     String   @db.VarChar(50)
   ip_address String?  @db.VarChar(45)
   user_agent String?  @db.VarChar(255)
-  status     String   @default("success") @db.VarChar(20) // success | failed
+  status     String   @default("success") @db.VarChar(20)
   timestamp  DateTime @default(now())
-
-  user User @relation(fields: [user_id], references: [user_id])
+  user       User     @relation(fields: [user_id], references: [user_id])
 
   @@index([user_id])
   @@map("AuthenticationLogs")
@@ -145,48 +124,43 @@ model AuditLog {
   audit_id    String   @id @default(cuid())
   user_id     String
   action      String   @db.VarChar(100)
-  entity_type String?  @db.VarChar(50)          // which model was affected e.g. Meeting
-  entity_id   String?  @db.VarChar(100)          // id of the affected record
+  entity_type String?  @db.VarChar(50)
+  entity_id   String?  @db.VarChar(100)
   details     String?
   timestamp   DateTime @default(now())
-
-  user User @relation(fields: [user_id], references: [user_id])
+  user        User     @relation(fields: [user_id], references: [user_id])
 
   @@index([user_id])
   @@map("AuditLogs")
 }
 
-// ─────────────────────────────────────────────
-// Meetings
-// ─────────────────────────────────────────────
-
 model Meeting {
-  meeting_id       String    @id @default(cuid())
-  host_id          String
-  meeting_title    String    @db.VarChar(100)
-  description      String?
-  meeting_code     String?   @unique @db.VarChar(20)
-  meeting_link     String?   @db.VarChar(255)
-  status           String    @default("scheduled") @db.VarChar(20) // scheduled | ongoing | ended | cancelled
-  is_recorded      Boolean   @default(false)
-  max_participants Int?
-  scheduled_at     DateTime
-  duration_minutes Int?
-  started_at       DateTime?
-  ended_at         DateTime?
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
-
-  host               User                @relation("HostedMeetings", fields: [host_id], references: [user_id])
-  meetingHosts       MeetingHost[]
-  participants       Participant[]
-  messages           Message[]
+  meeting_id         String              @id @default(cuid())
+  host_id            String
+  meeting_title      String              @db.VarChar(100)
+  description        String?
+  meeting_code       String?             @unique @db.VarChar(20)
+  meeting_link       String?             @db.VarChar(255)
+  status             String              @default("scheduled") @db.VarChar(20)
+  is_recorded        Boolean             @default(false)
+  max_participants   Int?
+  scheduled_at       DateTime
+  duration_minutes   Int?
+  started_at         DateTime?
+  ended_at           DateTime?
+  created_at         DateTime            @default(now())
+  updated_at         DateTime            @updatedAt
   breakoutRooms      BreakoutRoom[]
-  recordings         Recording[]
-  meetingTranscripts MeetingTranscript[]
-  meetingInvites     MeetingInvite[]
-  files              File[]
   feedback           Feedback[]
+  files              File[]
+  meetingHosts       MeetingHost[]
+  meetingInvites     MeetingInvite[]
+  lobbyEntries       MeetingLobby[]
+  meetingTranscripts MeetingTranscript[]
+  host               User                @relation("HostedMeetings", fields: [host_id], references: [user_id])
+  messages           Message[]
+  participants       Participant[]
+  recordings         Recording[]
 
   @@index([host_id])
   @@index([status])
@@ -196,12 +170,28 @@ model Meeting {
 model MeetingHost {
   meeting_id String
   host_id    String
-
-  meeting Meeting @relation(fields: [meeting_id], references: [meeting_id])
-  host    User    @relation(fields: [host_id], references: [user_id])
+  host       User    @relation(fields: [host_id], references: [user_id])
+  meeting    Meeting @relation(fields: [meeting_id], references: [meeting_id])
 
   @@id([meeting_id, host_id])
   @@map("MeetingHosts")
+}
+
+model MeetingLobby {
+  lobby_id       String    @id @default(cuid())
+  meeting_id     String
+  participant_id String
+  display_name   String?   @db.VarChar(50)
+  status         String    @default("waiting") @db.VarChar(20)
+  entered_at     DateTime  @default(now())
+  admitted_at    DateTime?
+  denied_at      DateTime?
+  meeting        Meeting   @relation(fields: [meeting_id], references: [meeting_id])
+  participant    User      @relation(fields: [participant_id], references: [user_id])
+
+  @@unique([meeting_id, participant_id])
+  @@index([meeting_id])
+  @@map("MeetingLobbies")
 }
 
 model Participant {
@@ -213,9 +203,8 @@ model Participant {
   is_host        Boolean   @default(false)
   joined_at      DateTime?
   left_at        DateTime?
-
-  meeting Meeting @relation(fields: [meeting_id], references: [meeting_id])
-  user    User    @relation(fields: [user_id], references: [user_id])
+  meeting        Meeting   @relation(fields: [meeting_id], references: [meeting_id])
+  user           User      @relation(fields: [user_id], references: [user_id])
 
   @@index([meeting_id])
   @@index([user_id])
@@ -228,9 +217,8 @@ model MeetingInvite {
   invitee_email String    @db.VarChar(100)
   sent_at       DateTime?
   responded_at  DateTime?
-  status        String    @default("pending") @db.VarChar(20) // pending | accepted | declined
-
-  meeting Meeting @relation(fields: [meeting_id], references: [meeting_id])
+  status        String    @default("pending") @db.VarChar(20)
+  meeting       Meeting   @relation(fields: [meeting_id], references: [meeting_id])
 
   @@index([meeting_id])
   @@map("MeetingInvites")
@@ -241,14 +229,13 @@ model Message {
   meeting_id   String
   sender_id    String
   content      String
-  message_type String    @default("text") @db.VarChar(20) // text | file | emoji | system
+  message_type String    @default("text") @db.VarChar(20)
   is_edited    Boolean   @default(false)
   edited_at    DateTime?
   is_deleted   Boolean   @default(false)
   sent_at      DateTime  @default(now())
-
-  meeting Meeting @relation(fields: [meeting_id], references: [meeting_id])
-  sender  User    @relation(fields: [sender_id], references: [user_id])
+  meeting      Meeting   @relation(fields: [meeting_id], references: [meeting_id])
+  sender       User      @relation(fields: [sender_id], references: [user_id])
 
   @@index([meeting_id])
   @@map("Messages")
@@ -260,47 +247,36 @@ model MeetingTranscript {
   transcript_text String
   language        String?  @db.VarChar(10)
   created_at      DateTime @default(now())
-
-  meeting Meeting @relation(fields: [meeting_id], references: [meeting_id])
+  meeting         Meeting  @relation(fields: [meeting_id], references: [meeting_id])
 
   @@map("MeetingTranscripts")
 }
 
-// ─────────────────────────────────────────────
-// Breakout Rooms
-// ─────────────────────────────────────────────
-
 model BreakoutRoom {
-  breakout_id      String   @id @default(cuid())
+  breakout_id      String                    @id @default(cuid())
   meeting_id       String
-  room_name        String?  @db.VarChar(50)
+  room_name        String?                   @db.VarChar(50)
   max_participants Int?
-  status           String   @default("open") @db.VarChar(20) // open | closed
-  created_at       DateTime @default(now())
-
-  meeting      Meeting                   @relation(fields: [meeting_id], references: [meeting_id])
-  participants BreakoutRoomParticipant[]
+  status           String                    @default("open") @db.VarChar(20)
+  created_at       DateTime                  @default(now())
+  participants     BreakoutRoomParticipant[]
+  meeting          Meeting                   @relation(fields: [meeting_id], references: [meeting_id])
 
   @@index([meeting_id])
   @@map("BreakoutRooms")
 }
 
 model BreakoutRoomParticipant {
-  breakout_id String
-  user_id     String
-  joined_at   DateTime?
-  left_at     DateTime?
-
+  breakout_id  String
+  user_id      String
+  joined_at    DateTime?
+  left_at      DateTime?
   breakoutRoom BreakoutRoom @relation(fields: [breakout_id], references: [breakout_id])
   user         User         @relation(fields: [user_id], references: [user_id])
 
   @@id([breakout_id, user_id])
   @@map("BreakoutRoomParticipants")
 }
-
-// ─────────────────────────────────────────────
-// Recordings & Files
-// ─────────────────────────────────────────────
 
 model Recording {
   recording_id     String   @id @default(cuid())
@@ -309,8 +285,7 @@ model Recording {
   file_size_mb     Float?
   duration_seconds Int?
   created_at       DateTime @default(now())
-
-  meeting Meeting @relation(fields: [meeting_id], references: [meeting_id])
+  meeting          Meeting  @relation(fields: [meeting_id], references: [meeting_id])
 
   @@index([meeting_id])
   @@map("Recordings")
@@ -319,23 +294,18 @@ model Recording {
 model File {
   file_id      String   @id @default(cuid())
   user_id      String
-  meeting_id   String?                        // nullable — files can exist outside meetings
+  meeting_id   String?
   file_name    String   @db.VarChar(100)
   file_url     String   @db.VarChar(255)
-  file_type    String?  @db.VarChar(50)       // MIME type e.g. application/pdf
+  file_type    String?  @db.VarChar(50)
   file_size_mb Float?
   uploaded_at  DateTime @default(now())
-
-  user    User     @relation(fields: [user_id], references: [user_id])
-  meeting Meeting? @relation(fields: [meeting_id], references: [meeting_id])
+  meeting      Meeting? @relation(fields: [meeting_id], references: [meeting_id])
+  user         User     @relation(fields: [user_id], references: [user_id])
 
   @@index([user_id])
   @@map("Files")
 }
-
-// ─────────────────────────────────────────────
-// Subscriptions & Payments
-// ─────────────────────────────────────────────
 
 model Subscription {
   subscription_id String    @id @default(cuid())
@@ -343,36 +313,30 @@ model Subscription {
   plan_name       String?   @db.VarChar(50)
   price           Decimal?  @db.Decimal(10, 2)
   currency        String    @default("USD") @db.VarChar(10)
-  status          String    @default("active") @db.VarChar(20) // active | expired | cancelled
+  status          String    @default("active") @db.VarChar(20)
   started_at      DateTime?
   expires_at      DateTime?
-
-  user     User      @relation(fields: [user_id], references: [user_id])
-  payments Payment[]
+  payments        Payment[]
+  user            User      @relation(fields: [user_id], references: [user_id])
 
   @@index([user_id])
   @@map("Subscriptions")
 }
 
 model Payment {
-  payment_id      String   @id @default(cuid())
+  payment_id      String       @id @default(cuid())
   subscription_id String
-  amount          Decimal  @db.Decimal(10, 2)
-  currency        String   @default("USD") @db.VarChar(10)
-  payment_method  String?  @db.VarChar(50)      // card | paypal | bank_transfer
-  status          String   @default("completed") @db.VarChar(20) // pending | completed | failed | refunded
-  transaction_id  String?  @db.VarChar(100)      // gateway reference e.g. Stripe charge_id
-  payment_date    DateTime @default(now())
-
-  subscription Subscription @relation(fields: [subscription_id], references: [subscription_id])
+  amount          Decimal      @db.Decimal(10, 2)
+  currency        String       @default("USD") @db.VarChar(10)
+  payment_method  String?      @db.VarChar(50)
+  status          String       @default("completed") @db.VarChar(20)
+  transaction_id  String?      @db.VarChar(100)
+  payment_date    DateTime     @default(now())
+  subscription    Subscription @relation(fields: [subscription_id], references: [subscription_id])
 
   @@index([subscription_id])
   @@map("Payments")
 }
-
-// ─────────────────────────────────────────────
-// User Extras
-// ─────────────────────────────────────────────
 
 model Device {
   device_id      String    @id @default(cuid())
@@ -383,8 +347,7 @@ model Device {
   browser        String?   @db.VarChar(50)
   is_trusted     Boolean   @default(false)
   last_active_at DateTime?
-
-  user User @relation(fields: [user_id], references: [user_id])
+  user           User      @relation(fields: [user_id], references: [user_id])
 
   @@index([user_id])
   @@map("Devices")
@@ -393,13 +356,12 @@ model Device {
 model Notification {
   notification_id String    @id @default(cuid())
   user_id         String
-  type            String?   @db.VarChar(50)  // meeting_invite | payment | system
+  type            String?   @db.VarChar(50)
   message         String
   is_read         Boolean   @default(false)
   read_at         DateTime?
   created_at      DateTime  @default(now())
-
-  user User @relation(fields: [user_id], references: [user_id])
+  user            User      @relation(fields: [user_id], references: [user_id])
 
   @@index([user_id])
   @@map("Notifications")
@@ -412,10 +374,9 @@ model Setting {
   setting_value String   @db.VarChar(255)
   description   String?
   updated_at    DateTime @updatedAt
+  user          User     @relation(fields: [user_id], references: [user_id])
 
-  user User @relation(fields: [user_id], references: [user_id])
-
-  @@unique([user_id, setting_name])            // one value per setting key per user
+  @@unique([user_id, setting_name])
   @@map("Settings")
 }
 
@@ -427,9 +388,8 @@ model Feedback {
   comments     String?
   is_anonymous Boolean  @default(false)
   submitted_at DateTime @default(now())
-
-  user    User    @relation(fields: [user_id], references: [user_id])
-  meeting Meeting @relation(fields: [meeting_id], references: [meeting_id])
+  meeting      Meeting  @relation(fields: [meeting_id], references: [meeting_id])
+  user         User     @relation(fields: [user_id], references: [user_id])
 
   @@index([meeting_id])
   @@map("Feedback")
@@ -439,12 +399,11 @@ model Contact {
   contact_id      String   @id @default(cuid())
   user_id         String
   contact_user_id String
-  status          String   @default("pending") @db.VarChar(20) // pending | accepted | blocked
+  status          String   @default("pending") @db.VarChar(20)
   added_at        DateTime @default(now())
+  contactUser     User     @relation("ContactUser", fields: [contact_user_id], references: [user_id])
+  user            User     @relation("UserContacts", fields: [user_id], references: [user_id])
 
-  user        User @relation("UserContacts", fields: [user_id], references: [user_id])
-  contactUser User @relation("ContactUser", fields: [contact_user_id], references: [user_id])
-
-  @@unique([user_id, contact_user_id])         // prevent duplicate contact entries
+  @@unique([user_id, contact_user_id])
   @@map("Contacts")
 }
