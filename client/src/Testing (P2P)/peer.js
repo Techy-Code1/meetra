@@ -10,7 +10,18 @@ export const createPeerConnection = (socket, roomId, setRemoteStream) => {
   closePeerConnection();
 
   peerConnection = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }], // Google's public STUN server
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" }, // Google's public STUN server
+      
+      //free public TURN (testing only)
+      {
+        urls: "turn:numb.viagenie.ca", //note: TURN servers are used to relay media when direct peer-to-peer connection fails (eg: due to NAT or firewall)
+        username: "webrtc@webrtc.org",
+        credential: "muazkh", 
+      },
+
+    ]  
+    
   });
 
   // Handle incoming remote stream
@@ -34,10 +45,26 @@ export const createPeerConnection = (socket, roomId, setRemoteStream) => {
 
   // Log connection state changes for debugging
   peerConnection.onconnectionstatechange = () => {
-    console.log("Peer connection:", peerConnection.connectionState);
+    console.log("Connection State:", peerConnection.connectionState);
   };
 
-  return peerConnection;
+  // Log ICE connection state changes for debugging (eg: checking, connected, failed)
+  peerConnection.oniceconnectionstatechange = () => {
+    console.log(
+      "ICE State:",
+      peerConnection.iceConnectionState
+    );
+  };
+
+  //ICE gathering means collecting network information (ICE candidates) to establish a connection
+  peerConnection.onicegatheringstatechange = () => {
+    console.log(
+      "ICE Gathering:",
+      peerConnection.iceGatheringState
+    );
+  };
+
+    return peerConnection;
 };
 
 // Add any pending ICE candidates once the remote description is set (remote description means the offer or answer from the other peer has been received and set)
