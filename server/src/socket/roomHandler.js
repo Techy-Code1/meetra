@@ -39,12 +39,6 @@ const registerRoomHandlers = (io, socket) => {
           }))
       : [];
 
-    // Allow only 2 users in one video room.
-    if (existingUsers.length >= 2) {
-      socket.emit("room-full", { roomId });
-      return;
-    }
-
     const currentUserId = userId || socket.id;
 
     socket.join(roomId);

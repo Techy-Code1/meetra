@@ -12,18 +12,21 @@ const roomId = "room-1";
 
 const Room = () => {
   const [localStream, setLocalStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
+  const [remoteStreams, setRemoteStreams] = useState([]);
   const [status, setStatus] = useState("Searching room...");
   const [error, setError] = useState("");
 
   const localStreamRef = useRef(null);
-  const remoteStreamRef = useRef(new MediaStream());
+  const remoteStreamsRef = useRef(new Map());
+  const producerParticipantRef = useRef(new Map());
 
   useEffect(() => {
     let sendTransport;
     let recvTransport;
     let isMounted = true;
     let isRecvTransportReady = false;
+    const remoteStreamsByParticipant = remoteStreamsRef.current;
+    const producerParticipants = producerParticipantRef.current;
 
     // Producers can arrive before recvTransport is ready, so queue them.
     const pendingProducers = [];
@@ -43,15 +46,29 @@ const Room = () => {
       })
     );
 
-    const addRemoteTrack = (track) => {
-      const stream = remoteStreamRef.current;
+    const addRemoteTrack = (participantId, producerId, track) => {
+      if (!(track instanceof MediaStreamTrack)) {
+        console.warn("Skipping invalid remote track:", track);
+        return;
+      }
+
+      const remoteParticipantId = participantId || producerId;
+      const stream = remoteStreamsByParticipant.get(remoteParticipantId) || new MediaStream();
 
       // Prevent duplicate tracks when the same producer event arrives twice.
       if (!stream.getTracks().some((existingTrack) => existingTrack.id === track.id)) {
         stream.addTrack(track);
       }
 
-      setRemoteStream(new MediaStream(stream.getTracks()));
+      remoteStreamsByParticipant.set(remoteParticipantId, stream);
+      producerParticipants.set(producerId, remoteParticipantId);
+
+      setRemoteStreams(
+        [...remoteStreamsByParticipant.entries()].map(([id, participantStream]) => ({
+          participantId: id,
+          stream: participantStream,
+        }))
+      );
     };
 
     const createTransport = async (device, direction) => {
@@ -142,7 +159,7 @@ const Room = () => {
           rtpParameters: data.rtpParameters,
         });
 
-        addRemoteTrack(consumer.track);
+        addRemoteTrack(producer.socketId, producerId, consumer.track);
 
         // The server starts consumers paused; resume after the browser creates it.
         await emitWithAck("consumer-resume", {
@@ -221,8 +238,35 @@ const Room = () => {
       consumeProducer(producer);
     };
 
+    const handleUserLeft = ({ socketId }) => {
+      if (!socketId) {
+        return;
+      }
+
+      const stream = remoteStreamsByParticipant.get(socketId);
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+
+      remoteStreamsByParticipant.delete(socketId);
+
+      for (const [producerId, participantId] of producerParticipants.entries()) {
+        if (participantId === socketId) {
+          producerParticipants.delete(producerId);
+          consumedProducerIds.delete(producerId);
+        }
+      }
+
+      setRemoteStreams(
+        [...remoteStreamsByParticipant.entries()].map(([id, participantStream]) => ({
+          participantId: id,
+          stream: participantStream,
+        }))
+      );
+    };
+
     const handleRoomFull = () => {
-      setError("This room already has two people in it.");
+      setError("This room is full.");
       setStatus("Room full");
     };
 
@@ -231,6 +275,7 @@ const Room = () => {
     socket.on("joined-room", handleJoinedRoom);
     socket.on("router-rtp-capabilities", handleRouterRtpCapabilities);
     socket.on("new-producer", handleNewProducer);
+    socket.on("user-left", handleUserLeft);
     socket.on("room-full", handleRoomFull);
 
     socket.connect();
@@ -254,14 +299,18 @@ const Room = () => {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
 
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      remoteStreamRef.current.getTracks().forEach((track) => track.stop());
+      remoteStreamsByParticipant.forEach((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+      });
+      remoteStreamsByParticipant.clear();
+      producerParticipants.clear();
 
       // Clean up Socket.IO event listeners and disconnect.
       socket.off("connect", handleConnect);
       socket.off("joined-room", handleJoinedRoom);
       socket.off("router-rtp-capabilities", handleRouterRtpCapabilities);
       socket.off("new-producer", handleNewProducer);
+      socket.off("user-left", handleUserLeft);
       socket.off("room-full", handleRoomFull);
       socket.disconnect();
     };
@@ -283,10 +332,22 @@ const Room = () => {
         </div>
 
         <div>
-          <h3>Remote Video</h3>
-          <VideoPlayer
-            stream={remoteStream}
-          />
+          <h3>Remote Participants</h3>
+          <div
+            style={{
+              display: "flex",
+              gap: "16px",
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            {remoteStreams.map(({ participantId, stream }) => (
+              <VideoPlayer
+                key={participantId}
+                stream={stream}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
