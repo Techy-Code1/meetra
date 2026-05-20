@@ -1,111 +1,291 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+@import "tailwindcss";
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ============================================= */
+/*  DESIGN SYSTEM — Tailwind v4 Theme Layer      */
+/*  Source: Figma Token Export (Alias + Base)   */
+/* ============================================= */
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+/* -------- Color Palette Tokens -------- */
+@theme {
+  /* ---------- Brand Palette ---------- */
+  --color-brand-50:    #f2f2fb;
+  --color-brand-100:   #e5e4f6;
+  --color-brand-200:   #cbcaed;
+  --color-brand-300:   #b1afe4;
+  --color-brand-400:   #8a87d7;
+  --color-brand-500:   #403bc7;
+  --color-brand-600:   #524eaf;
+  --color-brand-700:   #474497;
+  --color-brand-800:   #3a377b;
+  --color-brand-900:   #2d2b60;
+  --color-brand-950:   #212048;
+
+  /* ---------- Neutral Palette ---------- */
+  --color-neutral-50:  #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-850: #162033;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
+
+  /* ---------- State / Feedback ---------- */
+  --color-success-100: #d1fae5;
+  --color-success-500: #10b981;
+  --color-success-700: #047857;
+  --color-warning-100: #fef3c7;
+  --color-warning-500: #f59e0b;
+  --color-warning-700: #b45309;
+  --color-danger-100:  #ffe4e6;
+  --color-danger-500:  #f43f5e;
+  --color-danger-600:  #e11d48;
+  --color-danger-700:  #be123c;
+  --color-danger-800:  #9f1239;
+
+  /* ---------- Common ---------- */
+  --color-common-white:       #ffffff;
+  --color-common-black:       #020617;
+  --color-common-transparent: rgba(255, 255, 255, 0);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* -------- Background (semantic) -------- */
+@theme {
+  --color-bg-canvas:          var(--color-neutral-50);
+  --color-bg-surface:         var(--color-common-white);
+  --color-bg-elevated:        var(--color-neutral-200);
+  --color-bg-subtle:          var(--color-neutral-100);
+  --color-bg-brand:           var(--color-brand-500);
+  --color-bg-brand-hover:     var(--color-brand-600);
+  --color-bg-brand-pressed:   var(--color-brand-700);
+  --color-bg-disabled:        var(--color-neutral-200);
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  /* ---------- Text (semantic) ---------- */
+  --color-text-primary:       var(--color-neutral-950);
+  --color-text-secondary:     var(--color-neutral-500);
+  --color-text-inverse:       var(--color-neutral-50);
+  --color-text-subtle:        var(--color-neutral-400);
+  --color-text-brand:         var(--color-brand-600);
+  --color-text-disabled:      var(--color-neutral-500);
+
+  /* ---------- Icon (semantic) ---------- */
+  --color-icon-primary:       var(--color-text-primary);
+  --color-icon-inverse:       var(--color-text-inverse);
+  --color-icon-secondary:     var(--color-text-secondary);
+  --color-icon-brand:         var(--color-text-brand);
+  --color-icon-disabled:      var(--color-text-disabled);
+  --color-icon-on-brand:      var(--color-text-inverse);
+
+  /* ---------- Border (semantic) ---------- */
+  --color-border-default:  var(--color-neutral-600);
+  --color-border-subtle:   var(--color-neutral-200);
+  --color-border-dark:     var(--color-neutral-700);
+  --color-border-brand:  var(--color-brand-400);
+  --color-border-focus:  var(--color-brand-500);
+
+  /* ---------- State (semantic) ---------- */
+  --color-state-success: var(--color-success-500);
+  --color-state-warning: var(--color-warning-500);
+  --color-state-danger:  var(--color-danger-500);
+
+  /* ---------- Overlay ---------- */
+  --color-overlay-default: rgba(2, 6, 23, 0.13);
+}
+
+/* -------- Typography -------- */
+@theme {
+  /* families */
+  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  --font-body:    'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  /* weights */
+  --font-weight-400: 400;
+  --font-weight-500: 500;
+  --font-weight-600: 600;
+  --font-weight-700: 700;
+
+  /* sizes */
+  --font-size-12: 0.75rem;   /* 12px */
+  --font-size-14: 0.875rem;  /* 14px */
+  --font-size-16: 1rem;      /* 16px */
+  --font-size-18: 1.125rem;  /* 18px */
+  --font-size-20: 1.25rem;   /* 20px */
+  --font-size-24: 1.5rem;    /* 24px */
+  --font-size-32: 2rem;      /* 32px */
+  --font-size-40: 2.5rem;    /* 40px */
+  --font-size-48: 3rem;      /* 48px */
+  --font-size-64: 4rem;      /* 64px */
+
+  /* line heights */
+  --leading-16: 1rem;
+  --leading-20: 1.25rem;
+  --leading-24: 1.5rem;
+  --leading-28: 1.75rem;
+  --leading-32: 2rem;
+  --leading-40: 2.5rem;
+  --leading-48: 3rem;
+  --leading-56: 3.5rem;
+  --leading-64: 4rem;
+  --leading-80: 5rem;
+
+  /* tracking */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide:  0.05em;
+}
+
+/* -------- Spacing Scale -------- */
+@theme {
+  --spacing-0:   0rem;      /* 0px */
+  --spacing-2:   0.125rem;  /* 2px */
+  --spacing-4:   0.25rem;   /* 4px */
+  --spacing-8:   0.5rem;    /* 8px */
+  --spacing-12:  0.75rem;   /* 12px */
+  --spacing-16:  1rem;      /* 16px */
+  --spacing-20:  1.25rem;   /* 20px */
+  --spacing-24:  1.5rem;    /* 24px */
+  --spacing-32:  2rem;      /* 32px */
+  --spacing-40:  2.5rem;     /* 40px */
+  --spacing-48:  3rem;      /* 48px */
+  --spacing-64:  4rem;      /* 64px */
+  --spacing-80:  5rem;      /* 80px */
+  --spacing-96:  6rem;      /* 96px */
+}
+
+/* Inherit Tailwind default spacing map */
+@theme {
+  --spacing-px: 1px;       --spacing-0\.5: 0.125rem;
+  --spacing-1: 0.25rem;     --spacing-1\.5: 0.375rem;
+  --spacing-2: 0.5rem;      --spacing-2\.5: 0.625rem;
+  --spacing-3: 0.75rem;     --spacing-3\.5: 0.875rem;
+  --spacing-4: 1rem;        --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;      --spacing-7: 1.75rem;
+  --spacing-8: 2rem;         --spacing-9: 2.25rem;
+  --spacing-10: 2.5rem;     --spacing-11:  2.75rem;
+  --spacing-12: 3rem;       --spacing-14:  3.5rem;
+  --spacing-16: 4rem;       --spacing-20:  5rem;
+  --spacing-24: 6rem;       --spacing-28:  7rem;
+  --spacing-32: 8rem;       --spacing-36:  9rem;
+  --spacing-40: 10rem;      --spacing-44:  11rem;
+  --spacing-48: 12rem;      --spacing-52:  13rem;
+  --spacing-56: 14rem;      --spacing-60:  15rem;
+  --spacing-64: 16rem;      --spacing-72:  18rem;
+  --spacing-80: 20rem;      --spacing-96:  24rem;
+}
+
+/* -------- Radius / Border Radius -------- */
+@theme {
+  --radius-none: 0;
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-full: 999px;
+  --radius-control: var(--radius-lg);
+  --radius-card:    var(--radius-xl);
+  --radius-pill:    var(--radius-full);
+}
+
+/* -------- Dimensions (control sizes) -------- */
+@theme {
+  --size-16: 16px;
+  --size-20: 20px;
+  --size-24: 24px;
+  --size-32: 32px;
+  --size-40: 40px;
+  --size-48: 48px;
+  --size-56: 56px;
+  --size-64: 64px;
+  --size-72: 72px;
+  --size-96: 96px;
+}
+
+/* -------- Border -------- */
+@theme {
+  --border-width-0: 0px;
+  --border-width-1: 1px;
+  --border-width-2: 2px;
+  --border-width-default: var(--border-width-1);
+  --border-width-focus:   var(--border-width-2);
+}
+
+/* -------- Opacity -------- */
+@theme {
+  --opacity-8:   0.08;
+  --opacity-12:  0.12;
+  --opacity-16:  0.16;
+  --opacity-24:  0.24;
+  --opacity-48:  0.48;
+  --opacity-64:  0.64;
+  --opacity-100: 1;
+  --opacity-disabled: var(--opacity-48);
+}
+
+/* -------- Duration (transitions) -------- */
+@theme {
+  --duration-fast:     120ms;
+  --duration-moderate: 200ms;
+  --duration-slow:     320ms;
+  --duration-interaction: var(--duration-fast);
+  --duration-screen:      var(--duration-moderate);
+}
+
+/* -------- Z-Index / Layer -------- */
+@theme {
+  --z-base:      0;
+  --z-raised:    10;
+  --z-sticky:    100;
+  --z-dropdown:  400;
+  --z-overlay:   800;
+  --z-modal:     1000;
+  --z-tooltip:   1200;
+}
+
+
+
+/* Utility: .dark class toggle for JS-based dark mode */
+.dark {
+  --color-bg-canvas:          var(--color-neutral-950);
+  --color-bg-surface:         var(--color-neutral-900);
+  --color-bg-elevated:        var(--color-neutral-800);
+  --color-bg-subtle:          var(--color-neutral-850);
+  --color-bg-brand:           var(--color-brand-400);
+  --color-bg-brand-hover:     var(--color-brand-300);
+  --color-bg-brand-pressed:   var(--color-brand-200);
+  --color-bg-disabled:        var(--color-neutral-800);
+
+  --color-text-primary:       var(--color-neutral-50);
+  --color-text-secondary:     var(--color-neutral-400);
+  --color-text-inverse:       var(--color-neutral-950);
+  --color-text-subtle:        var(--color-neutral-500);
+  --color-text-brand:         var(--color-brand-300);
+  --color-text-disabled:      var(--color-neutral-500);
+
+  --color-border-default: var(--color-neutral-400);
+  --color-border-subtle:  var(--color-neutral-700);
+  --color-border-dark:    var(--color-neutral-200);
+  --color-border-brand:   var(--color-brand-500);
+  --color-border-focus:   var(--color-brand-400);
+
+  --color-overlay-default: rgba(248, 250, 252, 0.13);
+}
+
+/* ============================================= */
+/*  GLOBAL BASE STYLES                           */
+/* ============================================= */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-canvas);
 }

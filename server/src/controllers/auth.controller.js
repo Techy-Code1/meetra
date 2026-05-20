@@ -29,6 +29,15 @@ const generateOTP = () =>
 const hashToken = (raw) =>
   crypto.createHash("sha256").update(raw).digest("hex");
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const nameRegex = /^[A-Za-z]+(?:[ '-][A-Za-z]+)*$/;
+const passwordRegex =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{8,}$/;
+const otpRegex = /^\d{6}$/;
+
+const normalizeEmail = (email = "") => email.trim().toLowerCase();
+const normalizeName = (name = "") => name.trim().replace(/\s+/g, " ");
+
 // ------------------------------------------------
 // This Method helps to track user for forensics 
 // ------------------------------------------------
@@ -152,20 +161,33 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 const registerUser = asyncHandler(async (req, res) => {
   
   // ── 1. Destructure body ──
-  const { email, password, first_name, last_name } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const password = req.body.password || "";
+  const first_name = normalizeName(req.body.first_name);
+  const last_name = normalizeName(req.body.last_name);
 
   // ── 2. Validate fields ──
   if (!email || !password || !first_name || !last_name) {
     throw new ApiError(400, "All fields are required");
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     throw new ApiError(400, "Invalid email format");
   }
 
-  if (password.length < 8) {
-    throw new ApiError(400, "Password must be at least 8 characters");
+  if (first_name.length > 50 || last_name.length > 50) {
+    throw new ApiError(400, "First and last name must be 50 characters or fewer");
+  }
+
+  if (!nameRegex.test(first_name) || !nameRegex.test(last_name)) {
+    throw new ApiError(400, "Names can contain letters, apostrophes, hyphens, and spaces only");
+  }
+
+  if (/\s/.test(password) || !passwordRegex.test(password)) {
+    throw new ApiError(
+      400,
+      "Password must be at least 8 characters and include uppercase, lowercase, number, and symbol"
+    );
   }
 
   // ── 3. Check if email already exists ──
@@ -223,9 +245,12 @@ const registerUser = asyncHandler(async (req, res) => {
 // VERIFY OTP
 // ─────────────────────────────────────────────
 const verifyOTP = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const otp = String(req.body.otp || "").trim();
 
   if (!email || !otp) throw new ApiError(400, "email and otp are required");
+  if (!emailRegex.test(email)) throw new ApiError(400, "Invalid email format");
+  if (!otpRegex.test(otp)) throw new ApiError(400, "OTP must be exactly 6 digits");
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw new ApiError(404, "No account found with that email");
@@ -289,9 +314,10 @@ const verifyOTP = asyncHandler(async (req, res) => {
 // RESEND OTP
 // ─────────────────────────────────────────────
 const resendOTP = asyncHandler(async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
 
   if (!email) throw new ApiError(400, "email is required");
+  if (!emailRegex.test(email)) throw new ApiError(400, "Invalid email format");
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw new ApiError(404, "No account found with that email");

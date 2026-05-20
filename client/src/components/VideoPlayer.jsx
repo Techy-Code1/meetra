@@ -19,11 +19,7 @@ const VideoPlayer = ({ stream, muted = false }) => {
       autoPlay
       playsInline
       muted={muted}
-      style={{ 
-        width: "300px", 
-        border: "2px solid black",
-        backgroundColor: "#000"
-      }}
+      className="size-full object-cover rounded-[16px]"
     />
   );
 };
