@@ -7,6 +7,7 @@ import SignUp from "./pages/SignUp";
 import VerifyEmail from "./pages/VerifyEmail";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/lobby/:roomId" element={<Lobby />} />
         <Route path="/room/:roomId" element={<Room />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

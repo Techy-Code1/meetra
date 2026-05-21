@@ -156,7 +156,7 @@ function Dashboard() {
 
   return (
     <div className="flex min-h-screen bg-bg-canvas">
-      <Sidebar />
+      <Sidebar user={user} activeItem="dashboard" />
       <main className="flex flex-1 flex-col lg:pl-[300px]">
         <TopBar 
           userName={user ? user.first_name : "User"} 
