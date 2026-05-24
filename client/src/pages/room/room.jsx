@@ -15,6 +15,20 @@ const CLIENT_ID =
 
 window.sessionStorage.setItem("meetra-client-id", CLIENT_ID);
 
+const createLocalParticipant = (stream = null) => ({
+  id: "local",
+  socketId: null,
+  userId: CLIENT_ID,
+  initials: ROOM_DETAILS.profileInitials,
+  name: "You",
+  role: "Host",
+  isLocal: true,
+  mic: true,
+  cam: true,
+  talking: false,
+  stream,
+});
+
 const createInitials = (name = "") => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
 
@@ -27,11 +41,15 @@ const createInitials = (name = "") => {
 };
 
 const createRemoteParticipant = ({ socketId, userId, mic = true, cam = true }) => {
+  if (!socketId) return null;
+
   const fallbackName = `Guest ${socketId?.slice(-4) || ""}`.trim();
   const name = userId || fallbackName;
 
   return {
-    id: socketId,
+    id: `remote:${socketId}`,
+    socketId,
+    userId: userId || socketId,
     initials: createInitials(name),
     name,
     role: "Guest",
@@ -42,6 +60,9 @@ const createRemoteParticipant = ({ socketId, userId, mic = true, cam = true }) =
     stream: null,
   };
 };
+
+const isSameParticipant = (participant, participantId) =>
+  participant.id === participantId || participant.socketId === participantId;
 
 const emitWithAck = (event, payload) =>
   new Promise((resolve, reject) => {
@@ -56,8 +77,13 @@ const emitWithAck = (event, payload) =>
   });
 
 const upsertParticipant = (participants, participant) => {
+  if (!participant) return participants;
+
   const existingIndex = participants.findIndex(
-    (currentParticipant) => currentParticipant.id === participant.id,
+    (currentParticipant) =>
+      currentParticipant.id === participant.id ||
+      (participant.socketId &&
+        currentParticipant.socketId === participant.socketId),
   );
 
   if (existingIndex === -1) {
@@ -69,6 +95,30 @@ const upsertParticipant = (participants, participant) => {
       ? { ...currentParticipant, ...participant }
       : currentParticipant,
   );
+};
+
+const getUniqueParticipants = (participants) => {
+  const uniqueParticipants = [];
+  const seenKeys = new Set();
+
+  participants.forEach((participant) => {
+    if (!participant) return;
+
+    const uniqueKey = participant.isLocal
+      ? "local"
+      : participant.socketId || participant.id;
+
+    if (!uniqueKey || seenKeys.has(uniqueKey)) return;
+
+    seenKeys.add(uniqueKey);
+    uniqueParticipants.push(participant);
+  });
+
+  return uniqueParticipants;
+};
+
+const stopStreamTracks = (stream) => {
+  stream?.getTracks().forEach((track) => track.stop());
 };
 
 export default function Room() {
@@ -83,22 +133,12 @@ export default function Room() {
   const [draft, setDraft] = useState("");
   const [chatBadge, setChatBadge] = useState(0);
   const [inviteCopied, setInviteCopied] = useState(false);
-  const [participants, setParticipants] = useState([
-    {
-      id: "local",
-      initials: ROOM_DETAILS.profileInitials,
-      name: "You",
-      role: "Host",
-      isLocal: true,
-      mic: true,
-      cam: true,
-      talking: false,
-      stream: null,
-    },
-  ]);
+  const [joinCodeCopied, setJoinCodeCopied] = useState(false);
+  const [participants, setParticipants] = useState([createLocalParticipant()]);
   const [localStream, setLocalStream] = useState(null);
   const messagesEndRef = useRef(null);
   const inviteResetRef = useRef(null);
+  const joinCodeResetRef = useRef(null);
   const deviceRef = useRef(null);
   const sendTransportRef = useRef(null);
   const recvTransportRef = useRef(null);
@@ -118,6 +158,10 @@ export default function Room() {
     return () => {
       if (inviteResetRef.current) {
         window.clearTimeout(inviteResetRef.current);
+      }
+
+      if (joinCodeResetRef.current) {
+        window.clearTimeout(joinCodeResetRef.current);
       }
     };
   }, []);
@@ -229,15 +273,16 @@ export default function Room() {
     };
 
     const addRemoteTrack = ({ socketId, userId, kind, track }) => {
-      const stream =
-        remoteStreamsRef.current.get(socketId) || new MediaStream();
+      if (!socketId || socketId === socket.id || userId === CLIENT_ID) return;
+
+      const stream = remoteStreamsRef.current.get(socketId) || new MediaStream();
 
       stream.addTrack(track);
       remoteStreamsRef.current.set(socketId, stream);
 
       setParticipants((currentParticipants) => {
         const existingParticipant = currentParticipants.find(
-          (participant) => participant.id === socketId,
+          (participant) => participant.socketId === socketId,
         );
 
         return upsertParticipant(currentParticipants, {
@@ -332,15 +377,21 @@ export default function Room() {
         deviceRef.current = device;
 
         setParticipants((currentParticipants) => {
-          const remoteParticipants = (joinedRoom.peers || []).map((peer) =>
-            createRemoteParticipant(peer),
-          );
+          const remoteParticipants = (joinedRoom.peers || [])
+            .filter(
+              (peer) =>
+                peer?.socketId &&
+                peer.socketId !== socket.id &&
+                peer.userId !== CLIENT_ID,
+            )
+            .map((peer) => createRemoteParticipant(peer))
+            .filter(Boolean);
 
-          return [
+          return getUniqueParticipants([
             currentParticipants.find((participant) => participant.isLocal) ||
               currentParticipants[0],
             ...remoteParticipants,
-          ];
+          ]);
         });
 
         recvTransportRef.current = await createTransport(device, "recv");
@@ -376,6 +427,8 @@ export default function Room() {
     };
 
     const handleUserJoined = ({ socketId, userId, mic, cam }) => {
+      if (!socketId || socketId === socket.id || userId === CLIENT_ID) return;
+
       setParticipants((currentParticipants) =>
         upsertParticipant(
           currentParticipants,
@@ -385,16 +438,24 @@ export default function Room() {
     };
 
     const handleUserLeft = ({ socketId }) => {
+      const stream = remoteStreamsRef.current.get(socketId);
+      stopStreamTracks(stream);
       remoteStreamsRef.current.delete(socketId);
       setParticipants((currentParticipants) =>
-        currentParticipants.filter((participant) => participant.id !== socketId),
+        currentParticipants.filter(
+          (participant) => participant.socketId !== socketId,
+        ),
       );
     };
 
     const handleMediaState = ({ socketId, mic, cam }) => {
+      if (!socketId || socketId === socket.id) return;
+
       setParticipants((currentParticipants) =>
         currentParticipants.map((participant) =>
-          participant.id === socketId ? { ...participant, mic, cam } : participant,
+          participant.socketId === socketId
+            ? { ...participant, mic, cam }
+            : participant,
         ),
       );
     };
@@ -467,24 +528,69 @@ export default function Room() {
   };
 
   const focusParticipant = (participantId) => {
-    if (participants.length < 2) return;
+    if (visibleParticipants.length < 2) return;
 
     setFocusedId(participantId);
     setLayout("spotlight");
   };
 
-  const toggleLayout = () => {
-    if (layout === "grid" && participants.length > 1) {
-      setFocusedId(participants[0].id);
+  const selectLayout = (nextLayout) => {
+    if (nextLayout === "spotlight" && visibleParticipants.length > 1) {
+      setFocusedId(
+        (currentFocusedId) => currentFocusedId || visibleParticipants[0].id,
+      );
       setLayout("spotlight");
       return;
     }
 
+    setFocusedId(null);
     setLayout("grid");
   };
 
-  const handleLeave = () => {
-    window.confirm("Leave the call?");
+  const toggleLayout = () => {
+    if (layout === "spotlight") {
+      selectLayout("grid");
+      return;
+    }
+
+    selectLayout("spotlight");
+  };
+
+  const handleLeave = async () => {
+    const shouldLeave = window.confirm("Leave the call?");
+
+    if (!shouldLeave) return;
+
+    if (socket.connected) {
+      try {
+        await emitWithAck("leave-room", { roomId: ROOM_ID });
+      } catch (error) {
+        console.error("Could not notify the room before leaving.", error);
+      }
+    }
+
+    sendTransportRef.current?.close();
+    recvTransportRef.current?.close();
+    sendTransportRef.current = null;
+    recvTransportRef.current = null;
+    deviceRef.current = null;
+    setupStartedRef.current = false;
+    pendingProducersRef.current = [];
+    consumedProducerIdsRef.current.clear();
+
+    remoteStreamsRef.current.forEach((stream) => {
+      stopStreamTracks(stream);
+    });
+    remoteStreamsRef.current.clear();
+
+    setParticipants([createLocalParticipant(localStream)]);
+    setFocusedId(null);
+    setLayout("grid");
+    setSidebarTab(null);
+    setShareOn(false);
+    setHandOn(false);
+
+    socket.disconnect();
   };
 
   const handleInvite = async () => {
@@ -503,11 +609,37 @@ export default function Room() {
     }
   };
 
+  const handleCopyJoinCode = async () => {
+    try {
+      await navigator.clipboard?.writeText(ROOM_ID);
+    } finally {
+      setJoinCodeCopied(true);
+
+      if (joinCodeResetRef.current) {
+        window.clearTimeout(joinCodeResetRef.current);
+      }
+
+      joinCodeResetRef.current = window.setTimeout(() => {
+        setJoinCodeCopied(false);
+      }, 1600);
+    }
+  };
+
+  const visibleParticipants = getUniqueParticipants(participants);
+
+  const activeLayout =
+    layout === "spotlight" && visibleParticipants.length > 1 ? "spotlight" : "grid";
+  const activeFocusedId =
+    activeLayout === "spotlight" &&
+    visibleParticipants.some((participant) => isSameParticipant(participant, focusedId))
+      ? focusedId
+      : visibleParticipants[0]?.id ?? null;
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#07111f] font-sans text-slate-200">
       <RoomHeader
         room={ROOM_DETAILS}
-        participantsCount={participants.length}
+        participantsCount={visibleParticipants.length}
         inviteCopied={inviteCopied}
         onInvite={handleInvite}
         onOpenParticipants={() => openSidebar("participants")}
@@ -515,18 +647,18 @@ export default function Room() {
 
       <main className="flex min-h-0 flex-1 overflow-hidden">
         <VideoStage
-          participants={participants}
-          layout={layout}
-          focusedId={focusedId}
+          participants={visibleParticipants}
+          layout={activeLayout}
+          focusedId={activeFocusedId}
           micOn={micOn}
           camOn={camOn}
           onFocusParticipant={focusParticipant}
-          onCloseSpotlight={() => setLayout("grid")}
+          onCloseSpotlight={() => selectLayout("grid")}
         />
 
         <RoomSidebar
           activeTab={sidebarTab}
-          participants={participants}
+          participants={visibleParticipants}
           micOn={micOn}
           camOn={camOn}
           onToggleMic={() => setMicOn((currentValue) => !currentValue)}
@@ -542,12 +674,13 @@ export default function Room() {
       </main>
 
       <RoomFooter
-        participantsCount={participants.length}
+        joinCode={ROOM_ID}
+        joinCodeCopied={joinCodeCopied}
         micOn={micOn}
         camOn={camOn}
         shareOn={shareOn}
         handOn={handOn}
-        layout={layout}
+        layout={activeLayout}
         sidebarTab={sidebarTab}
         chatBadge={chatBadge}
         onToggleMic={() => setMicOn((currentValue) => !currentValue)}
@@ -555,6 +688,7 @@ export default function Room() {
         onToggleShare={() => setShareOn((currentValue) => !currentValue)}
         onToggleHand={() => setHandOn((currentValue) => !currentValue)}
         onToggleLayout={toggleLayout}
+        onCopyJoinCode={handleCopyJoinCode}
         onOpenSidebar={openSidebar}
         onLeave={handleLeave}
         onOpenSettings={() => openSidebar("settings")}
