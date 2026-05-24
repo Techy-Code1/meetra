@@ -1,4 +1,5 @@
 import { Mic, MicOff, VideoOff } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import Avatar from "./Avatar";
 
@@ -19,8 +20,12 @@ export default function VideoTile({
   selected = false,
   onSelect,
 }) {
+  const videoRef = useRef(null);
+  const audioRef = useRef(null);
   const micActive = isLocal ? localMicOn : participant.mic;
   const camActive = isLocal ? localCamOn : participant.cam;
+  const hasVideo = Boolean(participant.stream?.getVideoTracks().length);
+  const hasAudio = Boolean(participant.stream?.getAudioTracks().length);
   const isFilmstrip = variant === "filmstrip";
   const isFeatured = variant === "featured";
 
@@ -36,24 +41,52 @@ export default function VideoTile({
       ? "border-blue-500"
       : "border-[#1e3250]";
 
+  useEffect(() => {
+    if (!videoRef.current || !participant.stream) return;
+
+    videoRef.current.srcObject = participant.stream;
+    videoRef.current.play().catch(() => {});
+  }, [participant.stream]);
+
+  useEffect(() => {
+    if (!audioRef.current || !participant.stream) return;
+
+    audioRef.current.srcObject = participant.stream;
+    audioRef.current.play().catch(() => {});
+  }, [participant.stream]);
+
   return (
     <article
       onClick={onSelect}
       className={`relative overflow-hidden rounded-xl border bg-[#0d1b2e] transition-all duration-150 ${shapeClass} ${borderClass} ${onSelect ? "cursor-pointer" : ""}`}
     >
-      <div
-        className={`flex h-full w-full items-center justify-center ${
-          isLocal
-            ? "bg-[radial-gradient(ellipse_at_center,#1b1040_0%,#0d0b1e_100%)]"
-            : "bg-[radial-gradient(ellipse_at_center,#1a3050_0%,#0d1b2e_100%)]"
-        } ${camActive ? "" : "opacity-80"}`}
-      >
-        <Avatar
-          initials={participant.initials}
-          colorIndex={index}
-          className={getTileSize(variant)}
+      {camActive && hasVideo ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="block h-full w-full bg-black object-cover"
         />
-      </div>
+      ) : (
+        <div
+          className={`flex h-full w-full items-center justify-center ${
+            isLocal
+              ? "bg-[radial-gradient(ellipse_at_center,#1b1040_0%,#0d0b1e_100%)]"
+              : "bg-[radial-gradient(ellipse_at_center,#1a3050_0%,#0d1b2e_100%)]"
+          } ${camActive ? "" : "opacity-80"}`}
+        >
+          <Avatar
+            initials={participant.initials}
+            colorIndex={index}
+            className={getTileSize(variant)}
+          />
+        </div>
+      )}
+
+      {!isLocal && hasAudio && (
+        <audio ref={audioRef} autoPlay playsInline />
+      )}
 
       {isLocal && (
         <div className="absolute left-2 top-2 rounded bg-indigo-500/25 px-1.5 py-0.5 text-[10px] text-indigo-200 ring-1 ring-indigo-400/40">

@@ -72,8 +72,7 @@ const registerConsumerHandlers = ( io, socket) => {
           await transport.consume({
             producerId,
             rtpCapabilities,
-            // Pause first; frontend resumes after it creates its local consumer.
-            paused: true,
+            paused: false,
           });
 
         addConsumer(
@@ -82,6 +81,10 @@ const registerConsumerHandlers = ( io, socket) => {
         );
 
         console.log("Consumer created:", consumer.id);
+
+        if (consumer.kind === "video") {
+          await consumer.requestKeyFrame();
+        }
 
         callback({
           id: consumer.id,
@@ -118,6 +121,10 @@ const registerConsumerHandlers = ( io, socket) => {
       }
 
       await consumer.resume();
+
+      if (consumer.kind === "video") {
+        await consumer.requestKeyFrame();
+      }
 
       callback({ resumed: true });
     } catch (error) {

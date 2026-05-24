@@ -36,6 +36,8 @@ const registerRoomHandlers = (io, socket) => {
           .map((roomSocket) => ({
             userId: roomSocket.data.userId,
             socketId: roomSocket.id,
+            mic: roomSocket.data.mediaState?.mic ?? true,
+            cam: roomSocket.data.mediaState?.cam ?? true,
           }))
       : [];
 
@@ -44,6 +46,10 @@ const registerRoomHandlers = (io, socket) => {
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.userId = currentUserId;
+    socket.data.mediaState = socket.data.mediaState || {
+      mic: true,
+      cam: true,
+    };
 
     // Create mediasoup room only once.
     let mediasoupRoom = getRoom(roomId);
@@ -80,6 +86,23 @@ const registerRoomHandlers = (io, socket) => {
     socket.to(roomId).emit("user-joined", {
       userId: currentUserId,
       socketId: socket.id,
+      mic: socket.data.mediaState.mic,
+      cam: socket.data.mediaState.cam,
+    });
+  });
+
+  socket.on("participant-media-state", ({ roomId, mic, cam } = {}) => {
+    if (!roomId || socket.data.roomId !== roomId) return;
+
+    socket.data.mediaState = {
+      mic: Boolean(mic),
+      cam: Boolean(cam),
+    };
+
+    socket.to(roomId).emit("participant-media-state", {
+      userId: socket.data.userId,
+      socketId: socket.id,
+      ...socket.data.mediaState,
     });
   });
 

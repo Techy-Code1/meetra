@@ -1,4 +1,5 @@
 import { getRoom } from "./rooms.js";
+import os from "os";
 
 // Stores WebRTC transports by mediasoup transport id.
 const transports = new Map();
@@ -6,7 +7,39 @@ const transports = new Map();
 // Tracks all transport ids owned by one socket for disconnect cleanup.
 const socketTransports = new Map();
 
-export const createWebRtcTransport = async (roomId, socketId, direction = "send") => {
+const isLocalAddress = (address = "") =>
+  address === "127.0.0.1" ||
+  address === "::1" ||
+  address === "::ffff:127.0.0.1";
+
+const getLocalAnnouncedIp = (clientAddress) => {
+  if (isLocalAddress(clientAddress)) {
+    return "127.0.0.1";
+  }
+
+  if (process.env.MEDIASOUP_ANNOUNCED_IP) {
+    return process.env.MEDIASOUP_ANNOUNCED_IP;
+  }
+
+  const interfaces = os.networkInterfaces();
+
+  for (const addresses of Object.values(interfaces)) {
+    for (const address of addresses || []) {
+      if (address.family === "IPv4" && !address.internal) {
+        return address.address;
+      }
+    }
+  }
+
+  return "127.0.0.1";
+};
+
+export const createWebRtcTransport = async (
+  roomId,
+  socketId,
+  direction = "send",
+  clientAddress,
+) => {
 
   console.log(`Searching room: ${roomId}`);
   
@@ -17,14 +50,15 @@ export const createWebRtcTransport = async (roomId, socketId, direction = "send"
     throw new Error("Room not found");
   }
 
+  const announcedIp = getLocalAnnouncedIp(clientAddress);
+  const listenIp = {
+    ip: "0.0.0.0",
+    announcedIp,
+  };
+
   // Transport handles the browser-to-server media connection.
   const transport = await room.router.createWebRtcTransport({
-    listenIps: [
-      {
-        ip: "0.0.0.0",              // Listen on all network interfaces.
-        announcedIp: "127.0.0.1",   // Address sent to the browser.
-      },
-    ],
+    listenIps: [listenIp],
 
     enableUdp: true,
     enableTcp: true,

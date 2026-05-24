@@ -30,7 +30,7 @@ const registerProducerHandlers = (io, socket) => {
           rtpParameters,
         });
 
-        addProducer(socket.id, roomId, producer);
+        addProducer(socket.id, roomId, producer, socket.data.userId);
 
         console.log(`Producer created: ${producer.id}`);
 
@@ -38,6 +38,7 @@ const registerProducerHandlers = (io, socket) => {
         socket.to(roomId).emit("new-producer", {
           producerId: producer.id,
           socketId: socket.id,
+          userId: socket.data.userId,
           kind,
         });
 
