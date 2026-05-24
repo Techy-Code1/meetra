@@ -1,4 +1,6 @@
 import {
+  Check,
+  Copy,
   Hand,
   LayoutGrid,
   MessageCircle,
@@ -9,7 +11,6 @@ import {
   ScreenShareOff,
   Settings,
   Spotlight,
-  Users,
   Video,
   VideoOff,
 } from "lucide-react";
@@ -17,7 +18,8 @@ import {
 import ControlButton from "./ControlButton";
 
 export default function RoomFooter({
-  participantsCount,
+  joinCode,
+  joinCodeCopied,
   micOn,
   camOn,
   shareOn,
@@ -30,22 +32,44 @@ export default function RoomFooter({
   onToggleShare,
   onToggleHand,
   onToggleLayout,
+  onCopyJoinCode,
   onOpenSidebar,
   onLeave,
   onOpenSettings,
 }) {
   return (
-    <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-[#1e3250] bg-[#0d1b2e] px-3 py-2.5 sm:px-5">
-      <div className="hidden min-w-[150px] items-center gap-2 text-xs text-slate-500 sm:flex">
-        <span className="flex items-center gap-1.5 font-medium text-green-400">
-          <span className="h-2 w-2 rounded-full bg-green-400" />
-          Connected
-        </span>
-        <span aria-hidden="true">{"\u00B7"}</span>
-        <span>{participantsCount} participants</span>
+    <footer className="relative flex shrink-0 items-center justify-center border-t border-[#1e3250] bg-[#0d1b2e] px-3 py-2.5 sm:px-5">
+      <div className="absolute left-5 top-1/2 hidden w-220px -translate-y-1/2 items-center sm:flex">
+        <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[#1e3250] bg-[#0a1627] px-2 py-1">
+          <div className="flex min-w-0 flex-1 flex-col justify-center pl-1">
+            <p className="text-[9px] uppercase leading-none tracking-[0.18em] text-slate-500">
+              Join code
+            </p>
+            <input
+              type="text"
+              readOnly
+              value={joinCode}
+              aria-label="Room join code"
+              className="mt-1 w-full border-0 bg-transparent p-0 text-[15px] leading-none font-semibold text-slate-100 outline-none"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={onCopyJoinCode}
+            aria-label="Copy room join code"
+            className={`flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg border transition-colors ${
+              joinCodeCopied
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                : "border-[#1e3250] bg-[#12233b] text-slate-300 hover:bg-[#1e3250] hover:text-slate-100"
+            }`}
+          >
+            {joinCodeCopied ? <Check size={15} /> : <Copy size={15} />}
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-1 items-center justify-center gap-2 overflow-x-auto sm:gap-3">
+      <div className="flex items-center justify-center gap-2 overflow-x-auto sm:gap-3">
         <ControlButton
           label={micOn ? "Mute microphone" : "Unmute microphone"}
           active={micOn}
@@ -96,23 +120,15 @@ export default function RoomFooter({
         <div className="mx-0.5 h-7 w-px shrink-0 bg-[#1e3250]" />
 
         <ControlButton
-          label={layout === "grid" ? "Spotlight view" : "Grid view"}
+          label={layout === "spotlight" ? "Grid view" : "Spotlight view"}
           active={layout === "spotlight"}
           onClick={onToggleLayout}
         >
-          {layout === "grid" ? (
-            <Spotlight size={18} />
-          ) : (
+          {layout === "spotlight" ? (
             <LayoutGrid size={18} />
+          ) : (
+            <Spotlight size={18} />
           )}
-        </ControlButton>
-
-        <ControlButton
-          label="Show participants"
-          active={sidebarTab === "participants"}
-          onClick={() => onOpenSidebar("participants")}
-        >
-          <Users size={18} />
         </ControlButton>
 
         <div className="mx-0.5 h-7 w-px shrink-0 bg-[#1e3250]" />
@@ -122,7 +138,7 @@ export default function RoomFooter({
         </ControlButton>
       </div>
 
-      <div className="flex min-w-10 justify-end sm:min-w-[150px]">
+      <div className="absolute right-3 top-1/2 flex min-w-10 -translate-y-1/2 justify-end sm:right-5 sm:min-w-150px">
         <button
           type="button"
           aria-label="Open settings"
