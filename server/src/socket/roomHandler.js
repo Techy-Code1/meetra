@@ -5,7 +5,33 @@ import {
   removePeerFromRoom,
 } from "../mediasoup/rooms.js";
 import { getProducersForRoom } from "../mediasoup/producers.js";
+import { closeTransportsForSocket } from "../mediasoup/transport.js";
+import { removeProducersForSocket } from "../mediasoup/producers.js";
+import { removeConsumersForSocket } from "../mediasoup/consumers.js";
 
+const leaveCurrentRoom = (socket) => {
+  const { roomId, userId } = socket.data;
+
+  if (!roomId) return;
+
+  socket.leave(roomId);
+  removePeerFromRoom(roomId, socket.id);
+  removeConsumersForSocket(socket.id);
+  removeProducersForSocket(socket.id);
+  closeTransportsForSocket(socket.id);
+
+  socket.to(roomId).emit("user-left", {
+    userId,
+    socketId: socket.id,
+  });
+
+  socket.data.roomId = null;
+  socket.data.userId = null;
+  socket.data.mediaState = {
+    mic: true,
+    cam: true,
+  };
+};
 
 const registerRoomHandlers = (io, socket) => {
   // User joins a room with roomId and optional userId.
@@ -15,15 +41,7 @@ const registerRoomHandlers = (io, socket) => {
     // Leave old room before joining a new one.
     const previousRoomId = socket.data.roomId;
     if (previousRoomId && previousRoomId !== roomId) {
-      socket.leave(previousRoomId);
-
-      // Keep mediasoup room peer list in sync when a socket changes rooms.
-      removePeerFromRoom(previousRoomId, socket.id);
-
-      socket.to(previousRoomId).emit("user-left", {
-        userId: socket.data.userId,
-        socketId: socket.id,
-      });
+      leaveCurrentRoom(socket);
     }
 
     // Get users already connected in this socket room.
@@ -91,6 +109,16 @@ const registerRoomHandlers = (io, socket) => {
     });
   });
 
+  socket.on("leave-room", ({ roomId } = {}, callback = () => {}) => {
+    if (!roomId || socket.data.roomId !== roomId) {
+      callback({ left: false });
+      return;
+    }
+
+    leaveCurrentRoom(socket);
+    callback({ left: true });
+  });
+
   socket.on("participant-media-state", ({ roomId, mic, cam } = {}) => {
     if (!roomId || socket.data.roomId !== roomId) return;
 
@@ -108,16 +136,7 @@ const registerRoomHandlers = (io, socket) => {
 
   // Notify room when this socket disconnects.
   socket.on("disconnect", () => {
-    const { roomId, userId } = socket.data;
-    if (!roomId) return;
-
-    // Remove disconnected socket from mediasoup room peer tracking.
-    removePeerFromRoom(roomId, socket.id);
-
-    socket.to(roomId).emit("user-left", {
-      userId,
-      socketId: socket.id,
-    });
+    leaveCurrentRoom(socket);
   });
 };
 
