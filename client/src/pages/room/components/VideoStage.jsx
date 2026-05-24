@@ -22,6 +22,7 @@ export default function VideoStage({
     (participant) => participant.id !== featured?.id,
   );
   const canSpotlight = participants.length > 1;
+  const hasThreeParticipantGrid = layout !== "spotlight" && participants.length === 3;
 
   if (!participants.length) {
     return (
@@ -34,9 +35,14 @@ export default function VideoStage({
   return (
     <section className="relative flex min-w-0 flex-1 flex-col gap-2 overflow-hidden p-2.5">
       {layout === "spotlight" ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <div className="flex min-h-0 flex-1 gap-2 overflow-hidden">
           {secondary.length > 0 && (
-            <div className="flex h-28 shrink-0 gap-2 overflow-x-auto rounded-xl bg-[#081932] p-2">
+            <aside className="flex h-full w-36 shrink-0 flex-col overflow-hidden rounded-xl border border-[#1e3250] bg-[#081932] sm:w-44 lg:w-48">
+              <div className="shrink-0 border-b border-[#1e3250] px-3 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+                Participants
+              </div>
+
+              <div className="room-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
               {secondary.map((participant) => (
                 <VideoTile
                   key={participant.id}
@@ -49,7 +55,8 @@ export default function VideoStage({
                   onSelect={() => onFocusParticipant(participant.id)}
                 />
               ))}
-            </div>
+              </div>
+            </aside>
           )}
 
           <div className="relative flex min-h-0 flex-1 items-center justify-center rounded-xl border border-[#1e3250] bg-[#07162b] p-2">
@@ -70,6 +77,27 @@ export default function VideoStage({
               localCamOn={camOn}
               variant="featured"
             />
+          </div>
+        </div>
+      ) : hasThreeParticipantGrid ? (
+        <div className="min-h-0 flex-1 overflow-hidden p-0.5">
+          <div className="grid h-full w-full grid-cols-3 gap-2">
+            {participants.map((participant, index) => (
+              <VideoTile
+                key={participant.id}
+                participant={participant}
+                index={index}
+                isLocal={participant.isLocal}
+                localMicOn={micOn}
+                localCamOn={camOn}
+                variant="grid"
+                onSelect={
+                  canSpotlight
+                    ? () => onFocusParticipant(participant.id)
+                    : undefined
+                }
+              />
+            ))}
           </div>
         </div>
       ) : (
