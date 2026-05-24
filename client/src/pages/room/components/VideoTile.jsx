@@ -1,5 +1,5 @@
 import { Mic, MicOff, VideoOff } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 
 import Avatar from "./Avatar";
 
@@ -10,7 +10,7 @@ const getTileSize = (variant) => {
   return "h-14 w-14 text-lg";
 };
 
-export default function VideoTile({
+function VideoTile({
   participant,
   index,
   isLocal,
@@ -24,13 +24,15 @@ export default function VideoTile({
   const audioRef = useRef(null);
   const micActive = isLocal ? localMicOn : participant.mic;
   const camActive = isLocal ? localCamOn : participant.cam;
-  const hasVideo = Boolean(participant.stream?.getVideoTracks().length);
-  const hasAudio = Boolean(participant.stream?.getAudioTracks().length);
+  const videoTrackCount = participant.stream?.getVideoTracks().length ?? 0;
+  const audioTrackCount = participant.stream?.getAudioTracks().length ?? 0;
+  const hasVideo = videoTrackCount > 0;
+  const hasAudio = audioTrackCount > 0;
   const isFilmstrip = variant === "filmstrip";
   const isFeatured = variant === "featured";
 
   const shapeClass = isFilmstrip
-    ? "h-full min-w-[10rem] basis-[10rem] sm:min-w-[12rem] sm:basis-[12rem]"
+    ? "h-24 w-full shrink-0 sm:h-28"
     : isFeatured
       ? "h-full w-full"
       : "h-full w-full min-h-0";
@@ -42,18 +44,28 @@ export default function VideoTile({
       : "border-[#1e3250]";
 
   useEffect(() => {
-    if (!videoRef.current || !participant.stream) return;
+    if (!videoRef.current || !participant.stream || !camActive || !hasVideo) {
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      return;
+    }
 
     videoRef.current.srcObject = participant.stream;
     videoRef.current.play().catch(() => {});
-  }, [participant.stream]);
+  }, [camActive, hasVideo, participant.stream, videoTrackCount]);
 
   useEffect(() => {
-    if (!audioRef.current || !participant.stream) return;
+    if (!audioRef.current || !participant.stream || !hasAudio) {
+      if (audioRef.current) {
+        audioRef.current.srcObject = null;
+      }
+      return;
+    }
 
     audioRef.current.srcObject = participant.stream;
     audioRef.current.play().catch(() => {});
-  }, [participant.stream]);
+  }, [hasAudio, participant.stream, audioTrackCount]);
 
   return (
     <article
@@ -89,7 +101,7 @@ export default function VideoTile({
       )}
 
       {isLocal && (
-        <div className="absolute left-2 top-2 rounded bg-indigo-500/25 px-1.5 py-0.5 text-[10px] text-indigo-200 ring-1 ring-indigo-400/40">
+        <div className="absolute left-2 top-2 rounded bg-indigo-500 px-2 py-0.5 text-[10px] text-white-500 ring-1 ring-indigo-400/40">
           You
         </div>
       )}
@@ -110,7 +122,7 @@ export default function VideoTile({
         <span className={micActive ? "text-green-400" : "text-red-400"}>
           {micActive ? <Mic size={11} /> : <MicOff size={11} />}
         </span>
-        <span className="max-w-[9rem] truncate">{participant.name}</span>
+        <span className="max-w-9rem truncate">{participant.name}</span>
       </div>
 
       {!micActive && (
@@ -127,3 +139,15 @@ export default function VideoTile({
     </article>
   );
 }
+
+const areEqual = (previousProps, nextProps) =>
+  previousProps.participant === nextProps.participant &&
+  previousProps.index === nextProps.index &&
+  previousProps.isLocal === nextProps.isLocal &&
+  previousProps.localMicOn === nextProps.localMicOn &&
+  previousProps.localCamOn === nextProps.localCamOn &&
+  previousProps.variant === nextProps.variant &&
+  previousProps.selected === nextProps.selected &&
+  Boolean(previousProps.onSelect) === Boolean(nextProps.onSelect);
+
+export default memo(VideoTile, areEqual);
