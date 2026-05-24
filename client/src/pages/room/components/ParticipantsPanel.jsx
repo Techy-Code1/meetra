@@ -1,11 +1,44 @@
-import { Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, Search, Video, VideoOff } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import Avatar from "./Avatar";
 
-export default function ParticipantsPanel({ participants, micOn, camOn }) {
+export default function ParticipantsPanel({
+  participants,
+  micOn,
+  camOn,
+  className = "",
+}) {
+  const [query, setQuery] = useState("");
+
+  const filteredParticipants = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return participants;
+    }
+
+    return participants.filter((participant) =>
+      participant.name.toLowerCase().includes(normalizedQuery),
+    );
+  }, [participants, query]);
+
   return (
-    <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-3">
-      {participants.map((participant, index) => {
+    <div className={`room-scrollbar flex flex-1 flex-col gap-1.5 overflow-y-auto p-3 ${className}`}>
+      <div className="sticky top-0 z-10 rounded-xl bg-[#0d1b2e] pb-2">
+        <label className="flex items-center gap-2 rounded-xl border border-[#1e3250] bg-[#0f1f35] px-3 py-2 text-slate-400 focus-within:border-blue-500 focus-within:text-blue-300">
+          <Search size={15} />
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search participants"
+            className="w-full border-0 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
+          />
+        </label>
+      </div>
+
+      {filteredParticipants.map((participant, index) => {
         const micActive = participant.isLocal ? micOn : participant.mic;
         const camActive = participant.isLocal ? camOn : participant.cam;
 
@@ -49,6 +82,12 @@ export default function ParticipantsPanel({ participants, micOn, camOn }) {
           </div>
         );
       })}
+
+      {!filteredParticipants.length && (
+        <div className="rounded-lg border border-dashed border-[#1e3250] bg-[#0f1f35] px-3 py-6 text-center text-sm text-slate-400">
+          No participants found.
+        </div>
+      )}
     </div>
   );
 }
