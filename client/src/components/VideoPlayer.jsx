@@ -19,11 +19,14 @@ const VideoPlayer = ({ stream, muted = false }) => {
       autoPlay
       playsInline
       muted={muted}
+      
       style={{ 
+        transform: "scaleX(1)", // always mirror
         width: "300px", 
         border: "2px solid black",
         backgroundColor: "#000"
       }}
+
     />
   );
 };
