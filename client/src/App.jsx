@@ -1,4 +1,4 @@
-import Room from './pages/Room'
+import Room from "./pages/room/room";
 
 function App() {
   return (

@@ -3,12 +3,13 @@ const producers = new Map();
 // Tracks producer ids per socket so all camera/mic tracks close on disconnect.
 const socketProducers = new Map();
 
-export const addProducer = (socketId, roomId, producer) => {
+export const addProducer = (socketId, roomId, producer, userId) => {
     // Attach the socket ID and room ID to the producer's appData for tracking
     producer.appData = {
         ...producer.appData,
         socketId,
         roomId,
+        userId,
     };
 
     producers.set(producer.id, producer);
@@ -37,6 +38,7 @@ export const getProducersForRoom = (roomId, excludeSocketId) => {
         .map((producer) => ({
             producerId: producer.id,
             socketId: producer.appData.socketId,
+            userId: producer.appData.userId,
             kind: producer.kind,
         }));
 };

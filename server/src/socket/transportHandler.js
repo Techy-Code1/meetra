@@ -16,7 +16,8 @@ const registerTransportHandlers = (io, socket) => {
       const transport = await createWebRtcTransport(
         roomId,
         socket.id,
-        direction
+        direction,
+        socket.handshake.address
       );
 
       callback({
