@@ -1,4 +1,3 @@
-
 @import "tailwindcss";
 
 /* ============================================= */
@@ -279,13 +278,47 @@
 /* ============================================= */
 /*  GLOBAL BASE STYLES                           */
 /* ============================================= */
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
+  margin: 0;
   font-family: var(--font-body);
   color: var(--color-text-primary);
   background-color: var(--color-bg-canvas);
+}
+
+/* ============================================= */
+/*  ROOM SCROLLBAR                               */
+/* ============================================= */
+.room-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #28456d #081932;
+}
+
+.room-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.room-scrollbar::-webkit-scrollbar-track {
+  background: #081932;
+  border-radius: 999px;
+}
+
+.room-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #335987 0%, #223a5a 100%);
+  border: 2px solid #081932;
+  border-radius: 999px;
+}
+
+.room-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #3d699d 0%, #29486f 100%);
 }

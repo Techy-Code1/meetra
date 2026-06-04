@@ -1,3 +1,5 @@
+// We don't used it now becuse we used mediasoup for better performance and scalability, we just keep it as just see code for learning purpose
+
 const registerWebRTCHandlers = (io, socket) => {
   const relaySignal = (eventName, payload = {}) => {
     const { roomId, targetSocketId } = payload;

@@ -20,6 +20,7 @@ const VideoPlayer = ({ stream, muted = false }) => {
       playsInline
       muted={muted}
       className="size-full object-cover rounded-[16px]"
+      style={{ transform: muted ? "scaleX(-1)" : "none" }}
     />
   );
 };

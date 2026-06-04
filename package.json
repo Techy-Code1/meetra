@@ -1,0 +1,12 @@
+{
+  "name": "meetra",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "client:dev": "npm --prefix client run dev",
+    "server:dev": "npm --prefix server run dev",
+    "client:build": "npm --prefix client run build",
+    "server:start": "npm --prefix server run start",
+    "check:rooms": "node --check server/src/socket/roomHandler.js && node --check server/src/mediasoup/rooms.js"
+  }
+}

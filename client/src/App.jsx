@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Landing from "./pages/Landing";
-import Room from "./pages/Room";
+import Room from "./pages/room/room";
 import Lobby from "./pages/Lobby";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
