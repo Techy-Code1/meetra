@@ -1,12 +1,9 @@
-const getLocalStream = async () =>{
+const getLocalStream = async (constraints = { video: true, audio: true }) => {
     try{
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: true, 
-            audio: true 
-        });
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         return stream;
     }catch(error){
-        console.error("Error accesing media devices.", error);
+        console.error("Error accessing media devices.", error);
         throw error;
     }
 };

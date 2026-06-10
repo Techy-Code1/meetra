@@ -449,9 +449,9 @@ const getUpcomingMeetings = asyncHandler(async (req, res) => {
 
   const where = {
     host_id,
-    status:       "scheduled",
+    status: { in: ["scheduled", "ongoing"] },
     scheduled_at: {
-      gte: from_date ? new Date(from_date) : now,
+      gte: from_date ? new Date(from_date) : new Date(now.getTime() - 24 * 60 * 60 * 1000),
       ...(to_date && { lte: new Date(to_date) }),
     },
   };

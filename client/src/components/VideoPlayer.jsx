@@ -14,20 +14,15 @@ const VideoPlayer = ({ stream, muted = false }) => {
   }, [stream]);
 
   return (
-      <video
-        ref={ref}
-        autoPlay
-        playsInline
-        muted={muted}
-        style={{
-          width: 300,
-          border: "2px solid black",
-          backgroundColor: "#000",
-          objectFit: "cover",
-          transform: muted ? "scaleX(-1)" : "none",
-        }}
-      />
-        );
-      };
+    <video
+      ref={ref}
+      autoPlay
+      playsInline
+      muted={muted}
+      className="size-full object-cover rounded-[16px]"
+      style={{ transform: muted ? "scaleX(-1)" : "none" }}
+    />
+  );
+};
 
 export default VideoPlayer;
