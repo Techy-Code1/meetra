@@ -1,4 +1,11 @@
-import { X } from "lucide-react";
+import {
+  LuMaximize2 as Maximize2,
+  LuMinimize2 as Minimize2,
+  LuRefreshCcw as RefreshCcw,
+  LuX as X,
+  LuZoomIn as ZoomIn,
+  LuZoomOut as ZoomOut,
+} from "react-icons/lu";
 
 import { getGridClass } from "../utils/layout";
 import VideoTile from "./VideoTile";
@@ -7,13 +14,21 @@ const getParticipantIndex = (participants, id) =>
   participants.findIndex((participant) => participant.id === id);
 
 export default function VideoStage({
+  stageRef,
   participants,
   layout,
   focusedId,
   micOn,
   camOn,
+  zoomLevel,
+  canZoom,
+  isFullscreen,
   onFocusParticipant,
   onCloseSpotlight,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  onToggleFullscreen,
 }) {
   const featured =
     participants.find((participant) => participant.id === focusedId) ||
@@ -33,7 +48,10 @@ export default function VideoStage({
   }
 
   return (
-    <section className="relative flex min-w-0 flex-1 flex-col gap-2 overflow-hidden p-2.5">
+    <section
+      ref={stageRef}
+      className="relative flex min-w-0 flex-1 flex-col gap-2 overflow-hidden p-2.5"
+    >
       {layout === "spotlight" ? (
         <div className="flex min-h-0 flex-1 gap-2 overflow-hidden">
           {secondary.length > 0 && (
@@ -43,23 +61,68 @@ export default function VideoStage({
               </div>
 
               <div className="room-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
-              {secondary.map((participant) => (
-                <VideoTile
-                  key={participant.id}
-                  participant={participant}
-                  index={getParticipantIndex(participants, participant.id)}
-                  isLocal={participant.isLocal}
-                  localMicOn={micOn}
-                  localCamOn={camOn}
-                  variant="filmstrip"
-                  onSelect={() => onFocusParticipant(participant.id)}
-                />
-              ))}
+                {secondary.map((participant) => (
+                  <VideoTile
+                    key={participant.id}
+                    participant={participant}
+                    index={getParticipantIndex(participants, participant.id)}
+                    isLocal={participant.isLocal}
+                    localMicOn={micOn}
+                    localCamOn={camOn}
+                    variant="filmstrip"
+                    onSelect={() => onFocusParticipant(participant.id)}
+                  />
+                ))}
               </div>
             </aside>
           )}
 
           <div className="relative flex min-h-0 flex-1 items-center justify-center rounded-xl border border-[#1e3250] bg-[#07162b] p-2">
+            <div className="absolute left-2.5 top-2.5 z-10 flex items-center gap-1 rounded-lg border border-[#1e3250] bg-[#091426cc] p-1 text-slate-300 backdrop-blur-sm">
+              <button
+                type="button"
+                aria-label="Zoom out"
+                onClick={onZoomOut}
+                disabled={!canZoom || zoomLevel <= 1}
+                className="flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent transition-colors hover:bg-[#1e3250] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ZoomOut size={14} />
+              </button>
+
+              <span className="min-w-12 px-1 text-center text-[11px] font-medium text-slate-400">
+                {Math.round(zoomLevel * 100)}%
+              </span>
+
+              <button
+                type="button"
+                aria-label="Zoom in"
+                onClick={onZoomIn}
+                disabled={!canZoom || zoomLevel >= 1.75}
+                className="flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent transition-colors hover:bg-[#1e3250] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ZoomIn size={14} />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Reset zoom"
+                onClick={onResetZoom}
+                disabled={!canZoom || zoomLevel === 1}
+                className="flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent transition-colors hover:bg-[#1e3250] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <RefreshCcw size={13} />
+              </button>
+
+              <button
+                type="button"
+                aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                onClick={onToggleFullscreen}
+                className="ml-0.5 flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent transition-colors hover:bg-[#1e3250] hover:text-slate-100"
+              >
+                {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              </button>
+            </div>
+
             <button
               type="button"
               aria-label="Close spotlight"
@@ -76,6 +139,7 @@ export default function VideoStage({
               localMicOn={micOn}
               localCamOn={camOn}
               variant="featured"
+              zoomLevel={zoomLevel}
             />
           </div>
         </div>

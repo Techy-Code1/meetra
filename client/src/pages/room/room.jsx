@@ -15,7 +15,7 @@ const CLIENT_ID =
 
 window.sessionStorage.setItem("meetra-client-id", CLIENT_ID);
 
-const createLocalParticipant = (stream = null) => ({
+const createLocalParticipant = (stream = null, handRaised = false) => ({
   id: "local",
   socketId: null,
   userId: CLIENT_ID,
@@ -25,6 +25,7 @@ const createLocalParticipant = (stream = null) => ({
   isLocal: true,
   mic: true,
   cam: true,
+  handRaised,
   talking: false,
   stream,
 });
@@ -40,7 +41,13 @@ const createInitials = (name = "") => {
     .join("");
 };
 
-const createRemoteParticipant = ({ socketId, userId, mic = true, cam = true }) => {
+const createRemoteParticipant = ({
+  socketId,
+  userId,
+  mic = true,
+  cam = true,
+  handRaised = false,
+}) => {
   if (!socketId) return null;
 
   const fallbackName = `Guest ${socketId?.slice(-4) || ""}`.trim();
@@ -56,6 +63,7 @@ const createRemoteParticipant = ({ socketId, userId, mic = true, cam = true }) =
     isLocal: false,
     mic,
     cam,
+    handRaised,
     talking: false,
     stream: null,
   };
@@ -128,6 +136,8 @@ export default function Room() {
   const [handOn, setHandOn] = useState(false);
   const [layout, setLayout] = useState("grid");
   const [focusedId, setFocusedId] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState(null);
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [draft, setDraft] = useState("");
@@ -139,6 +149,7 @@ export default function Room() {
   const messagesEndRef = useRef(null);
   const inviteResetRef = useRef(null);
   const joinCodeResetRef = useRef(null);
+  const stageRef = useRef(null);
   const deviceRef = useRef(null);
   const sendTransportRef = useRef(null);
   const recvTransportRef = useRef(null);
@@ -167,6 +178,18 @@ export default function Room() {
   }, []);
 
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     const startLocalMedia = async () => {
@@ -191,7 +214,9 @@ export default function Room() {
         setLocalStream(stream);
         setParticipants((currentParticipants) =>
           currentParticipants.map((participant) =>
-            participant.isLocal ? { ...participant, stream } : participant,
+            participant.isLocal
+              ? { ...participant, stream, handRaised: handOn }
+              : participant,
           ),
         );
       } catch (error) {
@@ -226,6 +251,23 @@ export default function Room() {
       });
     }
   }, [camOn, localStream, micOn]);
+
+  useEffect(() => {
+    setParticipants((currentParticipants) =>
+      currentParticipants.map((participant) =>
+        participant.isLocal
+          ? { ...participant, handRaised: handOn }
+          : participant,
+      ),
+    );
+
+    if (socket.connected) {
+      socket.emit("participant-hand-state", {
+        roomId: ROOM_ID,
+        handRaised: handOn,
+      });
+    }
+  }, [handOn]);
 
   useEffect(() => {
     if (!localStream) return undefined;
@@ -418,6 +460,11 @@ export default function Room() {
           cam: mediaStateRef.current.cam,
         });
 
+        socket.emit("participant-hand-state", {
+          roomId: ROOM_ID,
+          handRaised: handOn,
+        });
+
         for (const producer of joinedRoom.producers || []) {
           await consumeProducer(producer);
         }
@@ -426,13 +473,13 @@ export default function Room() {
       }
     };
 
-    const handleUserJoined = ({ socketId, userId, mic, cam }) => {
+    const handleUserJoined = ({ socketId, userId, mic, cam, handRaised }) => {
       if (!socketId || socketId === socket.id || userId === CLIENT_ID) return;
 
       setParticipants((currentParticipants) =>
         upsertParticipant(
           currentParticipants,
-          createRemoteParticipant({ socketId, userId, mic, cam }),
+          createRemoteParticipant({ socketId, userId, mic, cam, handRaised }),
         ),
       );
     };
@@ -460,9 +507,22 @@ export default function Room() {
       );
     };
 
+    const handleHandState = ({ socketId, handRaised }) => {
+      if (!socketId || socketId === socket.id) return;
+
+      setParticipants((currentParticipants) =>
+        currentParticipants.map((participant) =>
+          participant.socketId === socketId
+            ? { ...participant, handRaised: Boolean(handRaised) }
+            : participant,
+        ),
+      );
+    };
+
     socket.on("user-joined", handleUserJoined);
     socket.on("user-left", handleUserLeft);
     socket.on("participant-media-state", handleMediaState);
+    socket.on("participant-hand-state", handleHandState);
     socket.on("new-producer", consumeProducer);
 
     startCall();
@@ -472,6 +532,7 @@ export default function Room() {
       socket.off("user-joined", handleUserJoined);
       socket.off("user-left", handleUserLeft);
       socket.off("participant-media-state", handleMediaState);
+      socket.off("participant-hand-state", handleHandState);
       socket.off("new-producer", consumeProducer);
       sendTransportRef.current?.close();
       recvTransportRef.current?.close();
@@ -531,6 +592,7 @@ export default function Room() {
     if (visibleParticipants.length < 2) return;
 
     setFocusedId(participantId);
+    setZoomLevel(1);
     setLayout("spotlight");
   };
 
@@ -539,11 +601,13 @@ export default function Room() {
       setFocusedId(
         (currentFocusedId) => currentFocusedId || visibleParticipants[0].id,
       );
+      setZoomLevel(1);
       setLayout("spotlight");
       return;
     }
 
     setFocusedId(null);
+    setZoomLevel(1);
     setLayout("grid");
   };
 
@@ -561,6 +625,14 @@ export default function Room() {
 
     if (!shouldLeave) return;
 
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch (error) {
+        console.error("Could not exit fullscreen before leaving.", error);
+      }
+    }
+
     if (socket.connected) {
       try {
         await emitWithAck("leave-room", { roomId: ROOM_ID });
@@ -577,6 +649,8 @@ export default function Room() {
     setupStartedRef.current = false;
     pendingProducersRef.current = [];
     consumedProducerIdsRef.current.clear();
+    setZoomLevel(1);
+    setIsFullscreen(false);
 
     remoteStreamsRef.current.forEach((stream) => {
       stopStreamTracks(stream);
@@ -626,9 +700,45 @@ export default function Room() {
   };
 
   const visibleParticipants = getUniqueParticipants(participants);
+  const raisedParticipants = visibleParticipants.filter(
+    (participant) => participant.handRaised,
+  );
+  const zoomStep = 0.15;
+  const minZoom = 1;
+  const maxZoom = 1.75;
+
+  const handleZoomIn = () => {
+    setZoomLevel((currentZoom) =>
+      Math.min(maxZoom, Number((currentZoom + zoomStep).toFixed(2))),
+    );
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel((currentZoom) =>
+      Math.max(minZoom, Number((currentZoom - zoomStep).toFixed(2))),
+    );
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+  };
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      await stageRef.current?.requestFullscreen?.();
+    } catch (error) {
+      console.error("Could not toggle fullscreen.", error);
+    }
+  };
 
   const activeLayout =
     layout === "spotlight" && visibleParticipants.length > 1 ? "spotlight" : "grid";
+  const canZoom = activeLayout === "spotlight" && visibleParticipants.length > 0;
   const activeFocusedId =
     activeLayout === "spotlight" &&
     visibleParticipants.some((participant) => isSameParticipant(participant, focusedId))
@@ -637,23 +747,32 @@ export default function Room() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#07111f] font-sans text-slate-200">
-      <RoomHeader
-        room={ROOM_DETAILS}
-        participantsCount={visibleParticipants.length}
-        inviteCopied={inviteCopied}
-        onInvite={handleInvite}
-        onOpenParticipants={() => openSidebar("participants")}
-      />
+        <RoomHeader
+          room={ROOM_DETAILS}
+          participantsCount={visibleParticipants.length}
+          raisedHandsCount={raisedParticipants.length}
+          inviteCopied={inviteCopied}
+          onInvite={handleInvite}
+          onOpenParticipants={() => openSidebar("participants")}
+        />
 
       <main className="flex min-h-0 flex-1 overflow-hidden">
         <VideoStage
+          stageRef={stageRef}
           participants={visibleParticipants}
           layout={activeLayout}
           focusedId={activeFocusedId}
           micOn={micOn}
           camOn={camOn}
+          zoomLevel={zoomLevel}
+          canZoom={canZoom}
+          isFullscreen={isFullscreen}
           onFocusParticipant={focusParticipant}
           onCloseSpotlight={() => selectLayout("grid")}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onResetZoom={handleResetZoom}
+          onToggleFullscreen={handleToggleFullscreen}
         />
 
         <RoomSidebar

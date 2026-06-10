@@ -1,22 +1,21 @@
 import {
-  Check,
-  Copy,
-  Hand,
-  LayoutGrid,
-  MessageCircle,
-  Mic,
-  MicOff,
-  PhoneOff,
-  ScreenShare,
-  ScreenShareOff,
-  Settings,
-  Spotlight,
-  Video,
-  VideoOff,
-} from "lucide-react";
+  LuCheck as Check,
+  LuCopy as Copy,
+  LuFocus as Spotlight,
+  LuLayoutGrid as LayoutGrid,
+  LuMessageCircle as MessageCircle,
+  LuMic as Mic,
+  LuMicOff as MicOff,
+  LuScreenShare as ScreenShare,
+  LuScreenShareOff as ScreenShareOff,
+  LuSettings as Settings,
+  LuVideo as Video,
+  LuVideoOff as VideoOff,
+} from "react-icons/lu";
+import { IoHandRightOutline } from "react-icons/io5";
+import { MdOutlineCallEnd } from "react-icons/md";
 
 import ControlButton from "./ControlButton";
-
 export default function RoomFooter({
   joinCode,
   joinCodeCopied,
@@ -112,9 +111,7 @@ export default function RoomFooter({
           active={handOn}
           onClick={onToggleHand}
         >
-          <span className={handOn ? "text-yellow-300" : ""}>
-            <Hand size={18} />
-          </span>
+            <IoHandRightOutline size={18} />
         </ControlButton>
 
         <div className="mx-0.5 h-7 w-px shrink-0 bg-[#1e3250]" />
@@ -134,7 +131,7 @@ export default function RoomFooter({
         <div className="mx-0.5 h-7 w-px shrink-0 bg-[#1e3250]" />
 
         <ControlButton label="Leave call" danger wide onClick={onLeave}>
-          <PhoneOff size={18} />
+          <MdOutlineCallEnd size={18} />
         </ControlButton>
       </div>
 

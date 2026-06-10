@@ -1,4 +1,11 @@
-import { Mic, MicOff, Search, Video, VideoOff } from "lucide-react";
+import {
+  LuMic as Mic,
+  LuMicOff as MicOff,
+  LuSearch as Search,
+  LuVideo as Video,
+  LuVideoOff as VideoOff,
+} from "react-icons/lu";
+import { IoHandRightOutline } from "react-icons/io5";
 import { useMemo, useState } from "react";
 
 import Avatar from "./Avatar";
@@ -41,11 +48,16 @@ export default function ParticipantsPanel({
       {filteredParticipants.map((participant, index) => {
         const micActive = participant.isLocal ? micOn : participant.mic;
         const camActive = participant.isLocal ? camOn : participant.cam;
+        const handLabel = participant.isLocal ? "You" : participant.name;
 
         return (
           <div
             key={participant.id}
-            className="flex items-center gap-2.5 rounded-lg bg-[#0f1f35] p-2"
+            className={`flex items-center gap-2.5 rounded-lg p-2 ${
+              participant.handRaised
+                ? "border border-emerald-400/25 bg-emerald-400/10 ring-1 ring-emerald-300/10"
+                : "bg-[#0f1f35]"
+            }`}
           >
             <Avatar
               initials={participant.initials}
@@ -78,6 +90,12 @@ export default function ParticipantsPanel({
               >
                 {camActive ? <Video size={12} /> : <VideoOff size={12} />}
               </div>
+              {participant.handRaised && (
+                <div className="flex h-6 max-w-8rem items-center gap-1.5 rounded-full bg-[#86e37d] px-2.5 text-[10px] font-medium text-slate-950 shadow-[0_1px_4px_rgba(0,0,0,0.12)]">
+                  <IoHandRightOutline size={18} strokeWidth={2.75} />
+                  <span className="truncate">{handLabel}</span>
+                </div>
+              )}
             </div>
           </div>
         );

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mic, Video } from "lucide-react";
+import { LuMic as Mic, LuVideo as Video } from "react-icons/lu";
 
 function ToggleRow({
   icon,

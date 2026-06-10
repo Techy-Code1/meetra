@@ -1,4 +1,9 @@
-import { UserPlus, Users, Video } from "lucide-react";
+import {
+  LuUserPlus as UserPlus,
+  LuUsers as Users,
+  LuVideo as Video,
+} from "react-icons/lu";
+import { IoHandRightOutline } from "react-icons/io5";
 
 import Avatar from "./Avatar";
 
@@ -18,6 +23,7 @@ function HeaderButton({ children, onClick, label }) {
 export default function RoomHeader({
   room,
   participantsCount,
+  raisedHandsCount = 0,
   inviteCopied,
   onInvite,
   onOpenParticipants,
@@ -38,6 +44,17 @@ export default function RoomHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        {raisedHandsCount > 0 && (
+          <div className="hidden items-center gap-2 rounded-full bg-[#86e37d] px-3 py-1.5 text-xs font-medium text-slate-950 shadow-[0_2px_8px_rgba(0,0,0,0.12)] sm:flex">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/10 text-slate-950">
+              <IoHandRightOutline size={18} />
+            </span>
+            <span className="whitespace-nowrap">
+              {raisedHandsCount} hand{raisedHandsCount === 1 ? "" : "s"} raised
+            </span>
+          </div>
+        )}
+
         <HeaderButton label="Invite participants" onClick={onInvite}>
           <UserPlus size={14} />
           <span className="hidden sm:inline">

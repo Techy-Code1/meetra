@@ -31,6 +31,7 @@ const leaveCurrentRoom = (socket) => {
     mic: true,
     cam: true,
   };
+  socket.data.handRaised = false;
 };
 
 const registerRoomHandlers = (io, socket) => {
@@ -56,6 +57,7 @@ const registerRoomHandlers = (io, socket) => {
             socketId: roomSocket.id,
             mic: roomSocket.data.mediaState?.mic ?? true,
             cam: roomSocket.data.mediaState?.cam ?? true,
+            handRaised: roomSocket.data.handRaised ?? false,
           }))
       : [];
 
@@ -68,6 +70,7 @@ const registerRoomHandlers = (io, socket) => {
       mic: true,
       cam: true,
     };
+    socket.data.handRaised = Boolean(socket.data.handRaised);
 
     // Create mediasoup room only once.
     let mediasoupRoom = getRoom(roomId);
@@ -106,6 +109,7 @@ const registerRoomHandlers = (io, socket) => {
       socketId: socket.id,
       mic: socket.data.mediaState.mic,
       cam: socket.data.mediaState.cam,
+      handRaised: socket.data.handRaised,
     });
   });
 
@@ -131,6 +135,18 @@ const registerRoomHandlers = (io, socket) => {
       userId: socket.data.userId,
       socketId: socket.id,
       ...socket.data.mediaState,
+    });
+  });
+
+  socket.on("participant-hand-state", ({ roomId, handRaised } = {}) => {
+    if (!roomId || socket.data.roomId !== roomId) return;
+
+    socket.data.handRaised = Boolean(handRaised);
+
+    socket.to(roomId).emit("participant-hand-state", {
+      userId: socket.data.userId,
+      socketId: socket.id,
+      handRaised: socket.data.handRaised,
     });
   });
 

@@ -1,4 +1,4 @@
-import { Send } from "lucide-react";
+import { LuSend as Send } from "react-icons/lu";
 
 export default function ChatPanel({
   messages,
@@ -26,7 +26,7 @@ export default function ChatPanel({
               {message.author}
             </span>
             <div
-              className={`max-w-[200px] break-words rounded-xl px-3 py-2 text-[13px] leading-snug ${
+              className={`max-w-200px break-word rounded-xl px-3 py-2 text-[13px] leading-snug ${
                 message.mine
                   ? "bg-blue-700 text-blue-50"
                   : "bg-[#162d4b] text-slate-200"
