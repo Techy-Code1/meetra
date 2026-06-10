@@ -1,4 +1,5 @@
-import { Mic, MicOff, VideoOff } from "lucide-react";
+import { LuMic as Mic, LuMicOff as MicOff, LuVideoOff as VideoOff } from "react-icons/lu";
+import { IoHandRightOutline } from "react-icons/io5";
 import { memo, useEffect, useRef } from "react";
 
 import Avatar from "./Avatar";
@@ -17,6 +18,7 @@ function VideoTile({
   localMicOn,
   localCamOn,
   variant = "grid",
+  zoomLevel = 1,
   selected = false,
   onSelect,
 }) {
@@ -30,6 +32,7 @@ function VideoTile({
   const hasAudio = audioTrackCount > 0;
   const isFilmstrip = variant === "filmstrip";
   const isFeatured = variant === "featured";
+  const handLabel = participant.isLocal ? "You" : participant.name;
 
   const shapeClass = isFilmstrip
     ? "h-24 w-full shrink-0 sm:h-28"
@@ -42,6 +45,13 @@ function VideoTile({
     : selected
       ? "border-blue-500"
       : "border-[#1e3250]";
+  const zoomStyle =
+    zoomLevel !== 1
+      ? {
+          transform: `scale(${zoomLevel})`,
+          transformOrigin: "center center",
+        }
+      : undefined;
 
   useEffect(() => {
     if (!videoRef.current || !participant.stream || !camActive || !hasVideo) {
@@ -78,7 +88,8 @@ function VideoTile({
           autoPlay
           playsInline
           muted
-          className="block h-full w-full bg-black object-cover"
+          style={zoomStyle}
+          className="block h-full w-full bg-black object-cover transition-transform duration-200"
         />
       ) : (
         <div
@@ -88,11 +99,16 @@ function VideoTile({
               : "bg-[radial-gradient(ellipse_at_center,#1a3050_0%,#0d1b2e_100%)]"
           } ${camActive ? "" : "opacity-80"}`}
         >
-          <Avatar
-            initials={participant.initials}
-            colorIndex={index}
-            className={getTileSize(variant)}
-          />
+          <div
+            style={zoomStyle}
+            className="flex h-full w-full items-center justify-center transition-transform duration-200"
+          >
+            <Avatar
+              initials={participant.initials}
+              colorIndex={index}
+              className={getTileSize(variant)}
+            />
+          </div>
         </div>
       )}
 
@@ -107,7 +123,7 @@ function VideoTile({
       )}
 
       {!camActive && (
-        <div className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/90 text-white">
+        <div className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/90 text-white">
           <VideoOff size={14} />
         </div>
       )}
@@ -125,9 +141,20 @@ function VideoTile({
         <span className="max-w-9rem truncate">{participant.name}</span>
       </div>
 
-      {!micActive && (
-        <div className="absolute bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500/90 text-white">
-          <MicOff size={12} />
+      {(participant.handRaised || !micActive) && (
+        <div className="absolute bottom-2 right-2 z-10 flex flex-col-reverse items-end gap-1">
+          {participant.handRaised && (
+            <div className="flex max-w-1rem items-center gap-2 rounded-full bg-[#86e37d] px-3.5 py-1.5 text-[13px] font-medium text-slate-950 shadow-[0_2px_8px_rgba(0,0,0,0.18)]">
+              <IoHandRightOutline size={16} strokeWidth={5} />
+              <span className="truncate">{handLabel}</span>
+            </div>
+          )}
+
+          {!micActive && (
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500/90 text-white">
+              <MicOff size={12} />
+            </div>
+          )}
         </div>
       )}
 
@@ -147,6 +174,7 @@ const areEqual = (previousProps, nextProps) =>
   previousProps.localMicOn === nextProps.localMicOn &&
   previousProps.localCamOn === nextProps.localCamOn &&
   previousProps.variant === nextProps.variant &&
+  previousProps.zoomLevel === nextProps.zoomLevel &&
   previousProps.selected === nextProps.selected &&
   Boolean(previousProps.onSelect) === Boolean(nextProps.onSelect);
 
