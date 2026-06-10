@@ -1,4 +1,4 @@
-import { Send } from "lucide-react";
+import { LuSend as Send } from "react-icons/lu";
 
 export default function ChatPanel({
   messages,
