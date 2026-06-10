@@ -21,22 +21,41 @@ const io = new Server(server, {
 // initialize socket logic
 initSocket(io);
 
-await createWorker(); 
+const listenOnPort = (port) =>
+  new Promise((resolve, reject) => {
+    const onError = (error) => {
+      server.off("error", onError);
+      reject(error);
+    };
+
+    server.once("error", onError);
+    server.listen(port, () => {
+      server.off("error", onError);
+      resolve();
+    });
+  });
 
 async function start() {
   try {
     // test DB connection
     await prisma.$queryRaw`SELECT 1`;
 
-    const port = process.env.PORT || 8000;
+    const port = Number(process.env.PORT) || 8000;
     console.log("PORT:", port);
 
-    server.listen(port, () => {
-      console.log("App is listening at Port:", port);
-    });
+    await listenOnPort(port);
+    await createWorker();
+
+    console.log("App is listening at Port:", port);
 
   } catch (error) {
-    console.log("Database Connection Failed:", error);
+    if (error?.code === "EADDRINUSE") {
+      console.error(
+        `Port ${process.env.PORT || 8000} is already in use. Stop the existing server or set a different PORT.`
+      );
+    } else {
+      console.error("Startup Failed:", error);
+    }
     process.exit(1);
   }
 }
