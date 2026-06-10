@@ -102,6 +102,39 @@ export async function login(data) {
   });
 }
 
+export async function forgotPassword({ email }) {
+  if (!email) {
+    throw new Error("Email is required");
+  }
+
+  return fetcher("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyForgotPasswordOTP({ email, otp }) {
+  if (!email || !otp) {
+    throw new Error("Email and verification code are required");
+  }
+
+  return fetcher("/auth/verify-forgot-password-otp", {
+    method: "POST",
+    body: JSON.stringify({ email, otp }),
+  });
+}
+
+export async function resetPassword({ email, resetToken, newPassword, confirmPassword }) {
+  if (!email || !resetToken || !newPassword || !confirmPassword) {
+    throw new Error("All fields are required");
+  }
+
+  return fetcher("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, resetToken, newPassword, confirmPassword }),
+  });
+}
+
 export async function getProfile() {
   return fetcher("/profile/me");
 }
